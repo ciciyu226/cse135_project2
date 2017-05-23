@@ -62,12 +62,12 @@ if(session.getAttribute("personName")==null) {
         /* Statement statement2 = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
         	    ResultSet.CONCUR_READ_ONLY); */
         /* } */
-        pstmt = conn.prepareStatement("SELECT p.id AS person, pd.id AS product, pic.price, sum(pic.quantity) FROM" +
+        pstmt = conn.prepareStatement("SELECT p.*, pd.id AS product, pic.price, sum(pic.quantity) FROM" +
           		 " shopping_cart sc"+
           		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
           		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
           		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +      		  
-          		" WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.id OFFSET ? ROWS", ResultSet.TYPE_SCROLL_SENSITIVE,
+          		" WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id OFFSET ? ROWS", ResultSet.TYPE_SCROLL_SENSITIVE,
            	    ResultSet.CONCUR_READ_ONLY);
         
         if(request.getParameter("offset_sale") != null){
@@ -81,7 +81,7 @@ if(session.getAttribute("personName")==null) {
         
         rs1 = statement1.executeQuery("SELECT * FROM product ORDER BY id");
         
-        pstmt2 = conn.prepareStatement("SELECT * FROM person ORDER BY id OFFSET ? LIMIT ?", ResultSet.TYPE_SCROLL_SENSITIVE,
+        pstmt2 = conn.prepareStatement("SELECT * FROM person ORDER BY person_name OFFSET ? LIMIT ?", ResultSet.TYPE_SCROLL_SENSITIVE,
            	    ResultSet.CONCUR_READ_ONLY);
         if(request.getParameter("offset_row") != null){
         offset_row = Integer.parseInt(request.getParameter("offset_row"));
@@ -133,15 +133,16 @@ if(session.getAttribute("personName")==null) {
   	rs1.beforeFirst(); %>
   	<tr>
   	 <!-- side header -->
-  	 <% int currCustomerid = rs2.getInt("id"); %>
-  	 <th><span><%= currCustomerid %>($)</span></th> 
+  	 <% String currCustomerName = rs2.getString("person_name"); %>
+  	 <th><span><%= currCustomerName %>($)</span></th> 
   	 <!-- cells in current row -->
    <%  while(rs1.next()){
      if(rs.isBeforeFirst()){
        rs.next();
      }
-     if(currCustomerid == rs.getInt("person")){
-     	if(rs1.getInt("id") == rs.getInt("product")){ %>
+     if(currCustomerName.equals(rs.getString("person_name"))){
+     	System.out.println("herehrehre");
+    	 if(rs1.getInt("id") == rs.getInt("product")){ %>
      	 <td><%= rs.getInt("price") * rs.getInt("sum")%></td>
 	    <%  if(!rs.isLast()){ 
 	          rs.next();
