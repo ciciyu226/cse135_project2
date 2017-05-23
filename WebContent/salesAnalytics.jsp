@@ -84,7 +84,8 @@ if(session.getAttribute("personName")==null) {
         pstmt2 = conn.prepareStatement("SELECT * FROM person ORDER BY id OFFSET ? LIMIT ?", ResultSet.TYPE_SCROLL_SENSITIVE,
            	    ResultSet.CONCUR_READ_ONLY);
         if(request.getParameter("offset_row") != null){
-        pstmt2.setInt(1, Integer.parseInt(request.getParameter("offset_row")));
+        offset_row = Integer.parseInt(request.getParameter("offset_row"));
+        pstmt2.setInt(1, offset_row);
         }
         else {
         pstmt2.setInt(1, 0);	
@@ -161,7 +162,8 @@ if(session.getAttribute("personName")==null) {
   	System.out.println("rs2 out of loop is at: "+ rs2.getRow());
   	System.out.println("rs is at: "+ rs.getRow());
     
-  	offset_row = offset_row + 20;
+  	offset_row = offset_row + rs2.getRow();
+  	System.out.println("offset_row: "+ offset_row);
     offset_sale = offset_sale + rs.getRow();
     System.out.println("rs is really at: "+ offset_sale); %>
     
