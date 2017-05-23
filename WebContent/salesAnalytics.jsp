@@ -35,14 +35,19 @@ if(session.getAttribute("personName")==null) {
     PreparedStatement pstmt = null;
     PreparedStatement pstmt1 = null;
     PreparedStatement pstmt2 = null;
+    PreparedStatement pstmt3 = null;
+    Statement statement3 = null;
     ResultSet rs = null;
     ResultSet rs1 = null;
     ResultSet rs2 = null;
+    ResultSet rs3 = null;
     int offset_row = 0;
     int offset_column = 0;
     int offset_sale = 0;
     int person_size = 0;
     int person_count = 0;
+    int currCustomerSale = 0;
+    int offset_totalPerPerson = 0;
     
     try {
         // Registering Postgresql JDBC driver with the DriverManager
@@ -62,12 +67,16 @@ if(session.getAttribute("personName")==null) {
         /* Statement statement2 = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
         	    ResultSet.CONCUR_READ_ONLY); */
         /* } */
-        pstmt = conn.prepareStatement("SELECT p.*, pd.id AS product, pic.price, sum(pic.quantity) FROM" +
-          		 " shopping_cart sc"+
-          		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
-          		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
-          		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +      		  
-          		" WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id OFFSET ? ROWS", ResultSet.TYPE_SCROLL_SENSITIVE,
+        String sales_query= "SELECT p.*, pd.id AS product, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM" +
+         		 " shopping_cart sc"+
+         		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
+         		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
+         		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +      		  
+         		" WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id";
+        String q1 = "WITH T AS (" + sales_query + ")"
+      			 + " SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY person_name";
+        
+        pstmt = conn.prepareStatement(sales_query + " OFFSET ? ROWS", ResultSet.TYPE_SCROLL_SENSITIVE,
            	    ResultSet.CONCUR_READ_ONLY);
         
         if(request.getParameter("offset_sale") != null){
@@ -100,7 +109,15 @@ if(session.getAttribute("personName")==null) {
         rs2.beforeFirst();
         }
         
-        
+        pstmt3 = conn.prepareStatement(q1 + " OFFSET ?");
+        if(request.getParameter("offset_totalPerPerson") != null){
+         offset_totalPerPerson = Integer.parseInt(request.getParameter("offset_totalPerPerson"));
+         pstmt3.setInt(1, offset_totalPerPerson);      
+         }
+         else {
+         pstmt3.setInt(1, 0);	
+         }
+    	rs3 = pstmt3.executeQuery();
         
         
         /* rs = statement.executeQuery("SELECT p.id AS person, pd.id AS product, pic.price, sum(pic.quantity) FROM" +
@@ -118,7 +135,7 @@ if(session.getAttribute("personName")==null) {
   <h3 style="text-align: center">Sales Report</h3>
   <table border="1" style="color:blue">
   	<tr>
-  	 <th>customer\product </th>
+  	  	 <th>customer\product</th>
   	 <!-- populate columns -->
   <% while (rs1.next()) {  %>
   	 <th><%=rs1.getInt("id") %><br>($total sale)</th>
@@ -129,20 +146,39 @@ if(session.getAttribute("personName")==null) {
     <form action="salesAnalytics.jsp" method="GET">
      <input type="hidden" name="action" value="next_20_rows">
   	<% 
+  	
   	while(rs2.next()) { 
   	rs1.beforeFirst(); %>
   	<tr>
   	 <!-- side header -->
-  	 <% String currCustomerName = rs2.getString("person_name"); %>
-  	 <th><span><%= currCustomerName %>($)</span></th> 
+  	 <% String currCustomerName = rs2.getString("person_name"); 
+  	 	
+  	 
+  	 
+  	 if(rs3.isBeforeFirst()){
+  	       rs3.next();
+  	 }   
+  	System.out.println("name in rs3: "+ rs3.getString("person_name"));	
+  		if(rs3.getString("person_name").equals(currCustomerName)){
+  	 	currCustomerSale = rs3.getInt("totalPerPerson");
+  			if(!rs3.isLast()){
+  				rs3.next();
+  			}
+  		}else {
+  			currCustomerSale = 0;
+  		}
+  	 %>
+  	 <th><span><%= currCustomerName %>($ <%= currCustomerSale%>)</span></th> 
   	 <!-- cells in current row -->
    <%  while(rs1.next()){
      if(rs.isBeforeFirst()){
        rs.next();
      }
      if(currCustomerName.equals(rs.getString("person_name"))){
-     	System.out.println("herehrehre");
-    	 if(rs1.getInt("id") == rs.getInt("product")){ %>
+     	//System.out.println("herehrehre");
+    	 if(rs1.getInt("id") == rs.getInt("product")){ 
+    	 	//currCustomerSale += rs.getInt("price") * rs.getInt("sum");
+    	 %>
      	 <td><%= rs.getInt("price") * rs.getInt("sum")%></td>
 	    <%  if(!rs.isLast()){ 
 	          rs.next();
@@ -160,16 +196,19 @@ if(session.getAttribute("personName")==null) {
   System.out.println("rs2 is at: "+ rs2.getRow());
   	} 
   	rs2.previous();
-  	System.out.println("rs2 out of loop is at: "+ rs2.getRow());
-  	System.out.println("rs is at: "+ rs.getRow());
-    
-  	offset_row = offset_row + rs2.getRow();
-  	System.out.println("offset_row: "+ offset_row);
+  	   
+  	offset_row = offset_row + rs2.getRow();  	
     offset_sale = offset_sale + rs.getRow();
+    offset_totalPerPerson = offset_totalPerPerson + rs3.getRow();  	
+    
+    System.out.println("rs2 out of loop is at: "+ rs2.getRow());
+  	System.out.println("rs is at: "+ rs.getRow());
+    System.out.println("offset_row: "+ offset_row);
     System.out.println("rs is really at: "+ offset_sale); %>
     
     <input type="hidden" name="offset_row" value="<%=offset_row %>">
      <input type="hidden" name="offset_sale" value="<%=offset_sale-1 %>">
+     <input type="hidden" name="offset_totalPerPerson" value="<%=offset_totalPerPerson-1 %>">
     <tr><td><input type="submit" value="NEXT 20 CUSTOMERS"></td></tr>
   	</form>
   </table>
