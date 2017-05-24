@@ -69,16 +69,35 @@ if(session.getAttribute("personName")==null) {
         /* Statement statement2 = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
         	    ResultSet.CONCUR_READ_ONLY); */
         /* } */
-        String sales_query= "SELECT p.*, pd.id AS product, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM" +
+        
+        /* Big table that directly uses for default choice: customer,alphebatical, All */
+        String customer_query= "SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM" +
          		 " shopping_cart sc"+
          		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
          		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
          		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +      		  
          		" WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id";
-        String q1 = "WITH T AS (" + sales_query + ")"
-      			 + " SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY person_name";
+        /* Small table that applies sort_order: Top-K filter on the big table customer_query */
+        String top_k_customer= "SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY totalPerPerson DESC";
         
-        pstmt = conn.prepareStatement(sales_query + " OFFSET ? ROWS", ResultSet.TYPE_SCROLL_SENSITIVE,
+       /*  Big table that directly uses for choice: state, alphebatical, All */
+        String state_query = "SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM" +
+        		 " shopping_cart sc"+
+        		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
+        		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
+        		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +
+        		  " INNER JOIN state s ON (s.id = p.id)" +
+        		" WHERE sc.is_purchased = 't' GROUP BY s.id, s.state_name, pd.id, pic.price ORDER BY s.state_name, pd.id";
+      
+       /* Small tables that retrived data from big tables to get row header total */
+        String cust_header_total = "WITH T AS (" + customer_query + ")"
+      			 + " SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY person_name";
+        String state_header_total = "WITH T AS (" + state_query + ")"
+     			 + " SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY state_name";
+        
+
+        
+        pstmt = conn.prepareStatement(customer_query + " OFFSET ? ROWS", ResultSet.TYPE_SCROLL_SENSITIVE,
            	    ResultSet.CONCUR_READ_ONLY);
         
         if(request.getParameter("offset_sale") != null){
@@ -111,7 +130,7 @@ if(session.getAttribute("personName")==null) {
         rs2.beforeFirst();
         }
         
-        pstmt3 = conn.prepareStatement(q1 + " OFFSET ?");
+        pstmt3 = conn.prepareStatement(cust_header_total + " OFFSET ?");
         if(request.getParameter("offset_totalPerPerson") != null){
          offset_totalPerPerson = Integer.parseInt(request.getParameter("offset_totalPerPerson"));
          pstmt3.setInt(1, offset_totalPerPerson);      
@@ -137,7 +156,7 @@ if(session.getAttribute("personName")==null) {
   <h3 style="text-align: center">Sales Report</h3>
   <table border="1" style="color:blue">
      <form action="salesAnalytics.jsp" method="GET">
-     <input type="hidden" name="action" value="next_20_rows">
+     <input type="hidden" name="action" value="runQuery">
      <% if(request.getParameter("offset_row")==null &&request.getParameter("offset_sale")==null
      		&& request.getParameter("offset_totalPerPerson")==null )
     	{ %>
@@ -155,8 +174,8 @@ if(session.getAttribute("personName")==null) {
 	  	    </select>
 	  	  </td>
 	  	  <td>
-	  	  <select value="sort_category">
-	  	    <option value="">All</option>
+	  	  <select name="sort_category">
+	  	    <option value="all">All</option>
 		  	<% statement4 = conn.createStatement();
 		  	rs4 = statement4.executeQuery("SELECT * FROM category");
 		  	while(rs4.next()){%>
@@ -165,19 +184,21 @@ if(session.getAttribute("personName")==null) {
 		  	}%>
 	  	  </select>
 	  	  </td>
+	  	  <td>
+	  	  <input type="submit" value="Run Query">
+	  	  </td>
 	  	</tr>
 	  	<tr>
-	 <% }
-        else{
-        	%>
-        	<input type="hidden" name="sort_row" value="<%=request.getParameter("sort_row")%>"/>
-        	<input type="hidden" name="sort_order" value="<%=request.getParameter("sort_order")%>"/>
-        	<input type="hidden" name="sort_category" value="<%=request.getParameter("sort_category")%>"/>
-        	<%
-        	System.out.println("sort_row: " + request.getParameter("sort_row"));
-        	System.out.println("sort_order: " + request.getParameter("sort_order"));
-        	System.out.println("sort_category: " + request.getParameter("sort_category"));
+       	
+       	<%
+       
         }%>
+  	</form>
+  	
+  	<%if(request.getParameter("action")!= null && (request.getParameter("action").equals("runQuery") 
+  	      || request.getParameter("action").equals("next_20_rows"))) { %>
+  	<form action="salesAnalytics.jsp" method="GET">
+    <input type="hidden" name="action" value="next_20_rows">
   	  	 <th>customer\product</th>
   	 <!-- populate columns -->
   <% while (rs1.next()) {  %>
@@ -209,7 +230,7 @@ if(session.getAttribute("personName")==null) {
   			currCustomerSale = 0;
   		}
   	 %>
-  	 <th><span><%= currCustomerName %>($ <%= currCustomerSale%>)</span></th> 
+  	 <th><span><%= currCustomerName %> <br><span style="color: black">($ <%= currCustomerSale%>)</span></span></th> 
   	 <!-- cells in current row -->
    <%  while(rs1.next()){
      if(rs.isBeforeFirst()){
@@ -220,7 +241,7 @@ if(session.getAttribute("personName")==null) {
     	 if(rs1.getInt("id") == rs.getInt("product")){ 
     	 	//currCustomerSale += rs.getInt("price") * rs.getInt("sum");
     	 %>
-     	 <td><%= rs.getInt("price") * rs.getInt("sum")%></td>
+     	 <td><%= rs.getInt("total")%></td>
 	    <%  if(!rs.isLast()){ 
 	          rs.next();
 	        }
@@ -234,7 +255,6 @@ if(session.getAttribute("personName")==null) {
   	</tr>
   	<!-- end of while loop of row -->
   <%  
-  System.out.println("rs2 is at: "+ rs2.getRow());
   	} 
   	rs2.previous();
   	   
@@ -247,11 +267,21 @@ if(session.getAttribute("personName")==null) {
     System.out.println("offset_row: "+ offset_row);
     System.out.println("rs is really at: "+ offset_sale); %>
     
+    <input type="hidden" name="sort_row" value="<%=request.getParameter("sort_row")%>"/>
+    <input type="hidden" name="sort_order" value="<%=request.getParameter("sort_order")%>"/>
+    <input type="hidden" name="sort_category" value="<%=request.getParameter("sort_category")%>"/>
+     <%	System.out.println("sort_row: " + request.getParameter("sort_row"));
+       	System.out.println("sort_order: " + request.getParameter("sort_order"));
+       	System.out.println("sort_category: " + request.getParameter("sort_category"));  	%>
     <input type="hidden" name="offset_row" value="<%=offset_row %>">
-     <input type="hidden" name="offset_sale" value="<%=offset_sale-1 %>">
-     <input type="hidden" name="offset_totalPerPerson" value="<%=offset_totalPerPerson-1 %>">
+    <input type="hidden" name="offset_sale" value="<%=offset_sale-1 %>">
+    <input type="hidden" name="offset_totalPerPerson" value="<%=offset_totalPerPerson-1 %>">
+     
+     
     <tr><td><input type="submit" value="NEXT 20 CUSTOMERS"></td></tr>
   	</form>
+  	<%} %>
+  
   </table>
   <%-- -------- Close Connection Code -------- --%>
     <%
@@ -292,5 +322,7 @@ if(session.getAttribute("personName")==null) {
         }
     }
     %>
+</main>
+</div>
 </body>
 </html>
