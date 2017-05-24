@@ -37,10 +37,12 @@ if(session.getAttribute("personName")==null) {
     PreparedStatement pstmt2 = null;
     PreparedStatement pstmt3 = null;
     Statement statement3 = null;
+    Statement statement4 = null;
     ResultSet rs = null;
     ResultSet rs1 = null;
     ResultSet rs2 = null;
     ResultSet rs3 = null;
+    ResultSet rs4 = null;
     int offset_row = 0;
     int offset_column = 0;
     int offset_sale = 0;
@@ -134,7 +136,48 @@ if(session.getAttribute("personName")==null) {
     %>
   <h3 style="text-align: center">Sales Report</h3>
   <table border="1" style="color:blue">
-  	<tr>
+     <form action="salesAnalytics.jsp" method="GET">
+     <input type="hidden" name="action" value="next_20_rows">
+     <% if(request.getParameter("offset_row")==null &&request.getParameter("offset_sale")==null
+     		&& request.getParameter("offset_totalPerPerson")==null )
+    	{ %>
+	  	<tr>
+	  	  <td>  	
+	  	    <select name="sort_row">
+	  	      <option value="person_name">Customer</option>
+	  	      <option value="state">State</option>
+	  	    </select>
+	  	  </td>
+	  	  <td>
+	  	    <select name="sort_order">
+	  	      <option value="alphabetical">Alphabetical</option>
+	  	      <option value="top_k">Top-K</option>
+	  	    </select>
+	  	  </td>
+	  	  <td>
+	  	  <select value="sort_category">
+	  	    <option value="">All</option>
+		  	<% statement4 = conn.createStatement();
+		  	rs4 = statement4.executeQuery("SELECT * FROM category");
+		  	while(rs4.next()){%>
+		  		<option value="<%=rs4.getInt("id")%>"><%=rs4.getString("category_name")%></option>
+		  	<%  
+		  	}%>
+	  	  </select>
+	  	  </td>
+	  	</tr>
+	  	<tr>
+	 <% }
+        else{
+        	%>
+        	<input type="hidden" name="sort_row" value="<%=request.getParameter("sort_row")%>"/>
+        	<input type="hidden" name="sort_order" value="<%=request.getParameter("sort_order")%>"/>
+        	<input type="hidden" name="sort_category" value="<%=request.getParameter("sort_category")%>"/>
+        	<%
+        	System.out.println("sort_row: " + request.getParameter("sort_row"));
+        	System.out.println("sort_order: " + request.getParameter("sort_order"));
+        	System.out.println("sort_category: " + request.getParameter("sort_category"));
+        }%>
   	  	 <th>customer\product</th>
   	 <!-- populate columns -->
   <% while (rs1.next()) {  %>
@@ -143,8 +186,6 @@ if(session.getAttribute("personName")==null) {
   	} %> 
   	</tr>
   	<!-- populate rows -->
-    <form action="salesAnalytics.jsp" method="GET">
-     <input type="hidden" name="action" value="next_20_rows">
   	<% 
   	
   	while(rs2.next()) { 
