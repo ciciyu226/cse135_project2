@@ -97,7 +97,7 @@ if(session.getAttribute("personName")==null) {
         		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
         		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +
         		  " INNER JOIN state s ON (s.id = p.id)" +
-        		" WHERE sc.is_purchased = 't' GROUP BY s.id, s.state_name, pd.id, pic.price ORDER BY s.state_name, pd.id";
+        		" WHERE sc.is_purchased = 't' GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id";
        /* Small table that applies sort_order: alphabetical + NO sort_category on the big table state_query */
        String alpha_state = "SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY state_name";
        /* Small table that applies sort_order: Top-K + NO sort_category on the big table state_query */
