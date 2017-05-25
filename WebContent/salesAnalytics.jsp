@@ -43,13 +43,23 @@ if(session.getAttribute("personName")==null) {
     ResultSet rs2 = null;
     ResultSet rs3 = null;
     ResultSet rs4 = null;
+    ResultSet rs_small = null;
     int offset_row = 0;
     int offset_column = 0;
     int offset_sale = 0;
     int person_size = 0;
     int person_count = 0;
     int currCustomerSale = 0;
-    int offset_totalPerPerson = 0;
+    int offset_alphabetical = 0;
+    Boolean isCustomer = true;
+    Boolean isState = false;
+    Boolean isAlphabetical = true;
+    Boolean isTopk = false;
+    Boolean isCategory = false;
+    String name = "";
+    String currName = ""; 
+    int currSale = 0;
+    
     
     try {
         // Registering Postgresql JDBC driver with the DriverManager
@@ -62,14 +72,14 @@ if(session.getAttribute("personName")==null) {
     	
         /* select all products */
         /* if (request.getParameter("action") == null){  */
-        /* Statement statement  = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
-        	    ResultSet.CONCUR_READ_ONLY); */
+        Statement statement_small  = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
+        	    ResultSet.CONCUR_READ_ONLY);
         Statement statement1 = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
         	    ResultSet.CONCUR_READ_ONLY);
         /* Statement statement2 = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
         	    ResultSet.CONCUR_READ_ONLY); */
         /* } */
-        
+        /*----------------------------Main Table------------------------------------------*/
         /*variables */
         String select_variable = "";
         String select_customer = " p.id AS person_id, p.person_name,";
@@ -84,12 +94,62 @@ if(session.getAttribute("personName")==null) {
         String orderBy_state = " s.state_name,";
         
         String searchBy_variable = "";
-        String searchByPersonName = " AND p.person_name = ?";
+        String searchByCustomerName = " AND p.person_name = ?";
         String searchByStateName = " AND s.state_name = ?";
         
         String join_variable ="";  /* customer uses this */
         String join_state = " INNER JOIN state s ON (s.id = p.id)";
+        
+       /* set default options: customer, alphabetical, no category */
+    	select_variable = select_customer;
+    	groupBy_variable = groupBy_customer;
+    	orderBy_variable = orderBy_customer;
+    	searchBy_variable = searchByCustomerName;
+
+        
+    	/*----------------------------SET USER CHOICE ------------------------------------------*/
+        if(request.getParameter("sort_row") != null && request.getParameter("sort_order") != null 
+             && request.getParameter("sort_category") != null ){
+        isCustomer = request.getParameter("sort_row").equals("person_name");
+        isState = request.getParameter("sort_row").equals("state");
+        isAlphabetical = request.getParameter("sort_order").equals("alphabetical");
+        isTopk = request.getParameter("sort_order").equals("top_k");
+        isCategory = !request.getParameter("sort_category").equals("all");	
+        	
+/* 	        if(isCustomer && isAlphabetical && !isCategory){
+	        	//default options
+	        	select_variable = select_customer;
+	        	groupBy_variable = groupBy_customer;
+	        	orderBy_variable = orderBy_customer;
+	        	searchBy_variable = searchByCustomerName;
+	        	
+	        } */
+        	if(isState && isAlphabetical && !isCategory){ 
+        		select_variable = select_state;
+	        	groupBy_variable = groupBy_state;
+	        	orderBy_variable = orderBy_state;
+	        	searchBy_variable = searchByStateName;
+	        	join_variable = join_state;
+ 	
+        	}
+        } 
+
+        System.out.println("select_variable: " + select_variable);
+    	System.out.println("groupBy_variable: " + groupBy_variable);
+    	System.out.println("orderBy_variable: " + orderBy_variable);
+    	System.out.println("join_variable: " + join_variable);
+    	System.out.println("searchBy_variable: " + searchBy_variable);
+    	
+    	
         /* Big table that small tables apply their filters on: */
+        String main_query_view = "SELECT" + select_variable +" pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM" +
+        		 " shopping_cart sc"+
+        		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
+        		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
+        		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +
+        		    join_variable + 
+        		" WHERE sc.is_purchased = 't' GROUP BY" + groupBy_variable  + " pd.id, pic.price ORDER BY" + orderBy_variable +" pd.id";
+        	
         String main_query= "SELECT" + select_variable +" pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM" +
          		 " shopping_cart sc"+
          		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
@@ -99,7 +159,7 @@ if(session.getAttribute("personName")==null) {
          		" WHERE sc.is_purchased = 't'" + searchBy_variable + " GROUP BY" + groupBy_variable  + " pd.id, pic.price ORDER BY" + orderBy_variable +" pd.id";
          	
         /*--------------------CUSTOMER ----------------------- */
-        String main_view = "WITH T AS (" + main_query + ")";
+        String main_view = "WITH T AS (" + main_query_view + ")";
         /* Small table that applies sort_order: alphebatical + no sort_category on customer_query */
         String alpha_customer = " SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY person_name";
         /* Small table that applies sort_order: Top-K + no sort_category on customer_query */
@@ -113,36 +173,30 @@ if(session.getAttribute("personName")==null) {
         
         /*--------------------STATE ----------------------- */       
        /* Small table that applies sort_order: alphabetical + NO sort_category on the big table state_query */
-       String alpha_state = "SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY state_name";
+       String alpha_state = " SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY state_name";
        /* Small table that applies sort_order: Top-K + NO sort_category on the big table state_query */
-       String topk_state = "SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY totalPerState DESC";
+       String topk_state = " SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY totalPerState DESC";
        /* Small table that applies sort_order: alphabetical + sort_category: a category on state_query */
-       String alpha_cat_state = "SELECT state_name, category_id, SUM(total) AS totalPerCategoryPerState FROM T GROUP BY state_name," +
+       String alpha_cat_state = " SELECT state_name, category_id, SUM(total) AS totalPerCategoryPerState FROM T GROUP BY state_name," +
        						" category_id ORDER BY category_id, state_name";
        /* Small table that applies sort_order: Top-k + sort_category: a category on state_query */
-       String topk_cat_state = "SELECT state_name, category_id, SUM(total) AS totalPerCategoryPerState FROM T GROUP BY state_name," +
+       String topk_cat_state = " SELECT state_name, category_id, SUM(total) AS totalPerCategoryPerState FROM T GROUP BY state_name," +
        						" category_id ORDER BY category_id, totalPerCategoryPerState DESC";
        
        
         
+        
+        
         /* -------------------QUERIES EXECUTION------------------------------------------------- */
-        
-        pstmt = conn.prepareStatement(customer_query + " OFFSET ? ROWS", ResultSet.TYPE_SCROLL_SENSITIVE,
-           	    ResultSet.CONCUR_READ_ONLY);
-        
-        if(request.getParameter("offset_sale") != null){
-	        offset_sale = Integer.parseInt(request.getParameter("offset_sale"));
-	        pstmt.setInt(1, offset_sale);      
-        }
-        else {
-        	pstmt.setInt(1, 0);	
-        }
-        rs = pstmt.executeQuery();
-        
+  
         rs1 = statement1.executeQuery("SELECT * FROM product ORDER BY id");
         
         pstmt2 = conn.prepareStatement("SELECT * FROM person ORDER BY person_name OFFSET ? LIMIT ?", ResultSet.TYPE_SCROLL_SENSITIVE,
            	    ResultSet.CONCUR_READ_ONLY);
+        if (request.getParameter("sort_row") != null && request.getParameter("sort_row").equals("state")){
+     	pstmt2 = conn.prepareStatement("SELECT * FROM state ORDER BY state_name OFFSET ? LIMIT ?", ResultSet.TYPE_SCROLL_SENSITIVE,
+             	    ResultSet.CONCUR_READ_ONLY);	
+        }
         if(request.getParameter("offset_row") != null){
         	offset_row = Integer.parseInt(request.getParameter("offset_row"));
         	pstmt2.setInt(1, offset_row);
@@ -159,25 +213,32 @@ if(session.getAttribute("personName")==null) {
         	System.out.println("Total number of people: " + person_size);
         	rs2.beforeFirst();
         }
+       
+        /*  This is the small table */
         
-        pstmt3 = conn.prepareStatement(alpha_customer + " OFFSET ?");
-        if(request.getParameter("offset_totalPerPerson") != null){
-        	offset_totalPerPerson = Integer.parseInt(request.getParameter("offset_totalPerPerson"));
-        	pstmt3.setInt(1, offset_totalPerPerson);      
+        pstmt3 = conn.prepareStatement(main_view + alpha_customer + " OFFSET ?");
+       
+        if (request.getParameter("sort_row")!= null && request.getParameter("sort_row").equals("state")){
+        	pstmt3 = conn.prepareStatement(main_view + alpha_state + " OFFSET ?");	
+        }
+        System.out.println(main_view + alpha_state + " OFFSET ?");
+        if(request.getParameter("offset_alphabetical") != null){
+        	offset_alphabetical = Integer.parseInt(request.getParameter("offset_alphabetical"));
+        	pstmt3.setInt(1, offset_alphabetical);      
         }
         else {
         	pstmt3.setInt(1, 0);	
         }
     		rs3 = pstmt3.executeQuery();
-        
-        
+    	System.out.println("third point");
+         
     %>
   <h3 style="text-align: center">Sales Report</h3>
   <table border="1" style="color:blue">
      <form action="salesAnalytics.jsp" method="GET">
      <input type="hidden" name="action" value="runQuery">
-     <% if(request.getParameter("offset_row")==null &&request.getParameter("offset_sale")==null
-     		&& request.getParameter("offset_totalPerPerson")==null )
+     <% if(request.getParameter("offset_row")==null 
+     		&& request.getParameter("offset_alphabetical")==null )
     	{ %>
 	  	<tr>
 	  	  <td>  	
@@ -260,46 +321,74 @@ if(session.getAttribute("personName")==null) {
   	while(rs2.next()) { 
   	rs1.beforeFirst(); %>
   	<tr>
-  	 <!-- side header -->
-  	 <% String currCustomerName = rs2.getString("person_name"); 
-  	 	
-  	 
-  	 
-  	 if(rs3.isBeforeFirst()){
+  	 <!-- ROW header -->
+  	 <%
+  	if(request.getParameter("sort_row").equals("person_name")){
+  	 	currName = rs2.getString("person_name");
+  	 }else if (request.getParameter("sort_row").equals("state")){
+  		currName = rs2.getString("state_name"); 
+  	 }
+  	 %>
+  	 <th><span><%= currName %> </span><br>
+	 
+  	 <% if(rs3.isBeforeFirst()){
   	       rs3.next();
   	 }   
-  	System.out.println("name in rs3: "+ rs3.getString("person_name"));	
-  		if(rs3.getString("person_name").equals(currCustomerName)){
-  	 	currCustomerSale = rs3.getInt("totalPerPerson");
-  			if(!rs3.isLast()){
+  	 if(request.getParameter("sort_row").equals("person_name")){
+  	 	name = rs3.getString("person_name");
+  	 }else if (request.getParameter("sort_row").equals("state")){
+  		name = rs3.getString("state_name"); 
+  	 }
+  	System.out.println("name in rs3: "+ name);	
+  		/* if person has found in the small table, do this */
+  	  if(name.equals(currName)){
+  		if(request.getParameter("sort_row").equals("person_name")){
+  			currSale = rs3.getInt("totalPerPerson");
+  	  	 }else if (request.getParameter("sort_row").equals("state")){
+  	  		currSale = rs3.getInt("totalPerState");
+  	  	 }
+  		 %>
+  	 	<span style="color: black">($ <%= currSale%>)</span></th> 
+  	 	
+  	 <% /* big table for searching */
+        pstmt = conn.prepareStatement(main_query, ResultSet.TYPE_SCROLL_SENSITIVE,
+           	    ResultSet.CONCUR_READ_ONLY);
+  	 	/* search in the big table */	 	
+  	 	pstmt.setString(1, name);
+   
+        rs = pstmt.executeQuery();	
+  	 	
+       /* populate product cells in current row*/
+         while(rs1.next()){
+          if(rs.isBeforeFirst()){
+            rs.next();
+          }
+
+          	if(rs1.getInt("id") == rs.getInt("product")){ 
+         	 	//currCustomerSale += rs.getInt("price") * rs.getInt("sum");
+         	 %>
+          	 <td><%= rs.getInt("total")%></td>
+     	    <%  if(!rs.isLast()){ 
+     	          rs.next();
+     	        }
+          	}else{  %>
+          	 <td>0</td>
+          <% } 
+         } 
+  	 	 if(!rs3.isLast()){
   				rs3.next();
   			}
-  		}else {
-  			currCustomerSale = 0;
-  		}
+  		}else {  /* if person has not found in the small table, do this */
+  			currSale = 0; %>
+  			<span style="color: black">($ <%= currSale%>)</span></th>
+  		 <%	while(rs1.next()){ %>
+  			<td>0</td>
+  		<%	} %>
+  	<% 	}
+  	 
   	 %>
-  	 <th><span><%= currCustomerName %> <br><span style="color: black">($ <%= currCustomerSale%>)</span></span></th> 
-  	 <!-- cells in current row -->
-   <%  while(rs1.next()){
-     if(rs.isBeforeFirst()){
-       rs.next();
-     }
-     if(currCustomerName.equals(rs.getString("person_name"))){
-     	//System.out.println("herehrehre");
-    	 if(rs1.getInt("id") == rs.getInt("product")){ 
-    	 	//currCustomerSale += rs.getInt("price") * rs.getInt("sum");
-    	 %>
-     	 <td><%= rs.getInt("total")%></td>
-	    <%  if(!rs.isLast()){ 
-	          rs.next();
-	        }
-     	}else{  %>
-     	 <td>0</td>
-     <% } 
-     }else { %>
-        <td>0</td>    
-    <%}  
-    } %>
+  	  
+  	
   	</tr>
   	<!-- end of while loop of row -->
   <%  
@@ -307,8 +396,8 @@ if(session.getAttribute("personName")==null) {
   	rs2.previous();
   	   
   	offset_row = offset_row + rs2.getRow();  	
-    offset_sale = offset_sale + rs.getRow();
-    offset_totalPerPerson = offset_totalPerPerson + rs3.getRow();  	
+    //offset_sale = offset_sale + rs.getRow();
+    offset_alphabetical = offset_alphabetical + rs3.getRow();  	
     
     System.out.println("rs2 out of loop is at: "+ rs2.getRow());
   	System.out.println("rs is at: "+ rs.getRow());
@@ -322,8 +411,8 @@ if(session.getAttribute("personName")==null) {
        	System.out.println("sort_order: " + request.getParameter("sort_order"));
        	System.out.println("sort_category: " + request.getParameter("sort_category"));  	%>
     <input type="hidden" name="offset_row" value="<%=offset_row %>">
-    <input type="hidden" name="offset_sale" value="<%=offset_sale-1 %>">
-    <input type="hidden" name="offset_totalPerPerson" value="<%=offset_totalPerPerson-1 %>">
+    <%-- <input type="hidden" name="offset_sale" value="<%=offset_sale-1 %>"> --%>
+    <input type="hidden" name="offset_alphabetical" value="<%=offset_alphabetical-1 %>">
      
      
     <tr><td><input type="submit" value="NEXT 20 CUSTOMERS"></td></tr>
@@ -333,9 +422,9 @@ if(session.getAttribute("personName")==null) {
   </table>
   <%-- -------- Close Connection Code -------- --%>
     <%
-        if(rs.isAfterLast()){
+        if(rs3.isAfterLast()){
         // Close the ResultSet
-        rs.close();
+        rs3.close();
 
         // Close the Statement
        // statement.close();
