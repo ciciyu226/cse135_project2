@@ -69,33 +69,49 @@ if(session.getAttribute("personName")==null) {
         /* Statement statement2 = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
         	    ResultSet.CONCUR_READ_ONLY); */
         /* } */
-        
-        /* Big table that directly uses for default choice: customer,alphebatical, All */
+        /*--------------------CUSTOMER ----------------------- */
+        /* Big table that small tables apply their filters on: */
         String customer_query= "SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM" +
          		 " shopping_cart sc"+
          		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
          		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
          		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +      		  
          		" WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id";
-        /* Small table that applies sort_order: Top-K filter on the big table customer_query */
-        String top_k_customer= "SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY totalPerPerson DESC";
+        /* Small table that applies sort_order: alphebatical + no sort_category on customer_query */
+        String alpha_customer = "WITH T AS (" + customer_query + ")"
+     			 + " SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY person_name";
+        /* Small table that applies sort_order: Top-K + no sort_category on customer_query */
+        String topk_customer= "SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY totalPerPerson DESC";
+        /* Small table that applies sort_order: alphabetical + sort_category: a category on customer_query */
+        String alpha_cat_customer = "SELECT person_name, category_id, SUM(total) AS totalPerCategoryPerPerson FROM T GROUP BY person_name," +
+        							" category_id ORDER BY category_id, person_name";
+        /* Small table that applies sort_order: Top-k + sort_category: a category on customer_query */
+        String topk_cat_customer = "SELECT person_name, category_id, SUM(total) AS totalPerCategoryPerPerson FROM T GROUP BY person_name," +
+        							" category_id ORDER BY category_id, totalPerCategoryPerPerson DESC";
         
-       /*  Big table that directly uses for choice: state, alphebatical, All */
+        /*--------------------STATE ----------------------- */
+       /*  Big table that small tables apply their filters on: */
         String state_query = "SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM" +
         		 " shopping_cart sc"+
         		  " INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)" +
         		  " RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)" +
         		  " RIGHT JOIN person p ON (p.id = sc.person_id)" +
         		  " INNER JOIN state s ON (s.id = p.id)" +
-        		" WHERE sc.is_purchased = 't' GROUP BY s.id, s.state_name, pd.id, pic.price ORDER BY s.state_name, pd.id";
-      
-       /* Small tables that retrived data from big tables to get row header total */
-        String cust_header_total = "WITH T AS (" + customer_query + ")"
-      			 + " SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY person_name";
-        String state_header_total = "WITH T AS (" + state_query + ")"
-     			 + " SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY state_name";
+        		" WHERE sc.is_purchased = 't' GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id";
+       /* Small table that applies sort_order: alphabetical + NO sort_category on the big table state_query */
+       String alpha_state = "SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY state_name";
+       /* Small table that applies sort_order: Top-K + NO sort_category on the big table state_query */
+       String topk_state = "SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY totalPerState DESC";
+       /* Small table that applies sort_order: alphabetical + sort_category: a category on state_query */
+       String alpha_cat_state = "SELECT state_name, category_id, SUM(total) AS totalPerCategoryPerState FROM T GROUP BY state_name," +
+       						" category_id ORDER BY category_id, state_name";
+       /* Small table that applies sort_order: Top-k + sort_category: a category on state_query */
+       String topk_cat_state = "SELECT state_name, category_id, SUM(total) AS totalPerCategoryPerState FROM T GROUP BY state_name," +
+       						" category_id ORDER BY category_id, totalPerCategoryPerState DESC";
+       
+       
         
-
+        /* -------------------QUERIES EXECUTION------------------------------------------------- */
         
         pstmt = conn.prepareStatement(customer_query + " OFFSET ? ROWS", ResultSet.TYPE_SCROLL_SENSITIVE,
            	    ResultSet.CONCUR_READ_ONLY);
@@ -130,7 +146,7 @@ if(session.getAttribute("personName")==null) {
         	rs2.beforeFirst();
         }
         
-        pstmt3 = conn.prepareStatement(cust_header_total + " OFFSET ?");
+        pstmt3 = conn.prepareStatement(alpha_customer + " OFFSET ?");
         if(request.getParameter("offset_totalPerPerson") != null){
         	offset_totalPerPerson = Integer.parseInt(request.getParameter("offset_totalPerPerson"));
         	pstmt3.setInt(1, offset_totalPerPerson);      
