@@ -15,7 +15,7 @@
 //Check to see if logged in or not.
 if(session.getAttribute("personName")==null) {
 	session.setAttribute("error","PLEASE LOG IN BEFORE ENTERING OTHER PAGES");
-	response.sendRedirect("http://localhost:9999/CSE135Project1_eclipse");
+	response.sendRedirect("login.jsp");
 	return;
 }
 //Check to see role
@@ -101,11 +101,11 @@ if(session.getAttribute("personName")==null) {
            	    ResultSet.CONCUR_READ_ONLY);
         
         if(request.getParameter("offset_sale") != null){
-        offset_sale = Integer.parseInt(request.getParameter("offset_sale"));
-        pstmt.setInt(1, offset_sale);      
+	        offset_sale = Integer.parseInt(request.getParameter("offset_sale"));
+	        pstmt.setInt(1, offset_sale);      
         }
         else {
-        pstmt.setInt(1, 0);	
+        	pstmt.setInt(1, 0);	
         }
         rs = pstmt.executeQuery();
         
@@ -114,31 +114,31 @@ if(session.getAttribute("personName")==null) {
         pstmt2 = conn.prepareStatement("SELECT * FROM person ORDER BY person_name OFFSET ? LIMIT ?", ResultSet.TYPE_SCROLL_SENSITIVE,
            	    ResultSet.CONCUR_READ_ONLY);
         if(request.getParameter("offset_row") != null){
-        offset_row = Integer.parseInt(request.getParameter("offset_row"));
-        pstmt2.setInt(1, offset_row);
+        	offset_row = Integer.parseInt(request.getParameter("offset_row"));
+        	pstmt2.setInt(1, offset_row);
         }
         else {
-        pstmt2.setInt(1, 0);	
+        	pstmt2.setInt(1, 0);	
         }
-        pstmt2.setInt(2, 20);
-        rs2 = pstmt2.executeQuery();
+        	pstmt2.setInt(2, 20);
+        	rs2 = pstmt2.executeQuery();
         
         if(request.getParameter("offset_row") == null){       
-        rs2.last();
-        person_size = rs2.getRow();
-        System.out.println("Total number of people: " + person_size);
-        rs2.beforeFirst();
+        	rs2.last();
+        	person_size = rs2.getRow();
+        	System.out.println("Total number of people: " + person_size);
+        	rs2.beforeFirst();
         }
         
         pstmt3 = conn.prepareStatement(cust_header_total + " OFFSET ?");
         if(request.getParameter("offset_totalPerPerson") != null){
-         offset_totalPerPerson = Integer.parseInt(request.getParameter("offset_totalPerPerson"));
-         pstmt3.setInt(1, offset_totalPerPerson);      
-         }
-         else {
-         pstmt3.setInt(1, 0);	
-         }
-    	rs3 = pstmt3.executeQuery();
+        	offset_totalPerPerson = Integer.parseInt(request.getParameter("offset_totalPerPerson"));
+        	pstmt3.setInt(1, offset_totalPerPerson);      
+        }
+        else {
+        	pstmt3.setInt(1, 0);	
+        }
+    		rs3 = pstmt3.executeQuery();
         
         
         /* rs = statement.executeQuery("SELECT p.id AS person, pd.id AS product, pic.price, sum(pic.quantity) FROM" +
@@ -163,24 +163,55 @@ if(session.getAttribute("personName")==null) {
 	  	<tr>
 	  	  <td>  	
 	  	    <select name="sort_row">
-	  	      <option value="person_name">Customer</option>
-	  	      <option value="state">State</option>
+	  	    <%
+	  	    if(request.getParameter("sort_row")!=null 
+	  	    	&& request.getParameter("sort_row").equals("state")){
+	  	    	%>
+	  	    	<option value="state">State</option>
+	  	        <option value="person_name">Customer</option>
+	  	    	<% 
+	  	    }
+	  	    else{
+	  	    %>
+	  	    	<option value="person_name">Customer</option>
+	  	    	<option value="state">State</option>
+	     <% } %>
 	  	    </select>
 	  	  </td>
 	  	  <td>
 	  	    <select name="sort_order">
-	  	      <option value="alphabetical">Alphabetical</option>
-	  	      <option value="top_k">Top-K</option>
+	  	   	<%
+	  	    if(request.getParameter("sort_order")!=null 
+	  	    	&& request.getParameter("sort_order").equals("top_k")){
+	  	    	%>
+	  	    	<option value="top_k">Top-K</option>
+	  	        <option value="alphabetical">Alphabetical</option>
+	  	    	<% 
+	  	    }
+	  	    else{
+	  	    %>
+	  	    	<option value="alphabetical">Alphabetical</option>
+	  	    	<option value="top_k">Top-K</option>
+	  	 <% } %>
 	  	    </select>
 	  	  </td>
 	  	  <td>
 	  	  <select name="sort_category">
+	  	  <%if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("all")){
+	  		  %>
+			<option value="<%=request.getParameter("sort_category")%>"><%=request.getParameter("sort_category")%></option>
+	  	  <%} %>
 	  	    <option value="all">All</option>
 		  	<% statement4 = conn.createStatement();
 		  	rs4 = statement4.executeQuery("SELECT * FROM category");
-		  	while(rs4.next()){%>
-		  		<option value="<%=rs4.getInt("id")%>"><%=rs4.getString("category_name")%></option>
-		  	<%  
+		  	while(rs4.next()){
+		  		if( request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("all")
+		  				&& rs4.getString("category_name").equals(request.getParameter("sort_category"))){
+		  		}
+		  		else{
+		  		%>
+		  		<option value="<%=rs4.getString("category_name")%>"><%=rs4.getString("category_name")%></option>
+		  	<%	}  
 		  	}%>
 	  	  </select>
 	  	  </td>
@@ -189,9 +220,7 @@ if(session.getAttribute("personName")==null) {
 	  	  </td>
 	  	</tr>
 	  	<tr>
-       	
        	<%
-       
         }%>
   	</form>
   	
