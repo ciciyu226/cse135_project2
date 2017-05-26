@@ -124,12 +124,12 @@ INSERT INTO state (state_name, state_code) VALUES ('Northern Mariana Islands','M
 
 /*queries for choice: customer/state, alphabetical/top-k, no-filtering of category*/
 /* CUSTOMER uses this */
-WITH T AS (SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+WITH T AS (SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
           RIGHT JOIN person p ON (p.id = sc.person_id)
-        WHERE sc.is_purchased = 't' AND p.person_name= 'CUST_0' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id)
+        WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id)
 
 /*alphabetical*/
 SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY person_name;
@@ -137,7 +137,7 @@ SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORD
 SELECT person_name, SUM(total) AS totalPerPerson FROM T GROUP BY person_name ORDER BY totalPerPerson DESC;
 
 /* STATE uses this */
-WITH T AS (SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+WITH T AS (SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
@@ -150,39 +150,95 @@ SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER 
 SELECT state_name, SUM(total) AS totalPerState FROM T GROUP BY state_name ORDER BY totalPerState DESC;
 
 /* other tables */
-select * from product ORDER BY id;
+select * from person ORDER BY person_name;
 select * from state ORDER BY state_name;
+select * from product ORDER BY product_name;
+-- alphabetical PRODUCT
+SELECT product_name, SUM(total) AS totalPerProduct FROM T GROUP BY product_name ORDER BY product_name;
+-- TOP-K PRODUCT
+SELECT product_name, SUM(total) AS totalPerProduct FROM T GROUP BY product_name ORDER BY totalPerProduct DESC;
+
+
 
 
 /*queries for choice: customer/state, alphebatical/top-k, categoryid*/
 /* CUSTOMER uses this*/
-WITH T AS (SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+
+WITH T AS (SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.product_name, c.category_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
           RIGHT JOIN person p ON (p.id = sc.person_id)
-        WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id)
-/*alphabetical + categoryid*/
-SELECT person_name, category_id, SUM(total) AS totalPerCategoryPerPerson FROM T WHERE category_id = '4' GROUP BY person_name, category_id ORDER BY category_id, person_name;
-/*top-k + categoryid */
-SELECT person_name, category_id, SUM(total) AS totalPerCategoryPerPerson FROM T WHERE category_id = '4' GROUP BY person_name, category_id ORDER BY category_id, totalPerCategoryPerPerson DESC;
+          INNER JOIN category c ON (pd.category_id = c.id)
+        WHERE sc.is_purchased = 't'  GROUP BY p.id, pd.id, c.category_name, pic.price ORDER BY p.person_name, pd.id)
+/*alphabetical + categoryid CUSTOMER*/
+SELECT person_name, SUM(total) AS totalPerCategoryPerPerson FROM T WHERE category_name = 'CAT_6' GROUP BY person_name ORDER BY person_name;
+/*top-k + categoryid CUSTOMER*/
+SELECT person_name, SUM(total) AS totalPerCategoryPerPerson FROM T WHERE category_name = 'CAT_6' GROUP BY person_name  ORDER BY totalPerCategoryPerPerson DESC;
 
 /* STATE uses this */
-WITH T AS (SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.category_id, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+WITH T AS (SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, c.category_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
           RIGHT JOIN person p ON (p.id = sc.person_id)
           INNER JOIN state s ON (s.id = p.id)
-        WHERE sc.is_purchased = 't' GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id)
-/*alphabetical + categoryid*/
-SELECT state_name, category_id, SUM(total) AS totalPerCategoryPerState FROM T GROUP BY state_name, category_id ORDER BY category_id, state_name;
-/*top-k + categoryid */
-SELECT state_name, category_id, SUM(total) AS totalPerCategoryPerState FROM T GROUP BY state_name, category_id ORDER BY category_id, totalPerCategoryPerState DESC;
+          INNER JOIN category c ON (pd.category_id = c.id)
+        WHERE sc.is_purchased = 't' GROUP BY s.id, s.state_name, c.category_name, pd.id, pic.price ORDER BY s.state_name, pd.id)
+
+
+/*alphabetical + categoryid STATE*/
+SELECT state_name, SUM(total) AS totalPerCategoryPerState FROM T WHERE category_name = 'CAT_6' GROUP BY state_name ORDER BY state_name;
+
+/*top-k + categoryid STATE */
+SELECT state_name, SUM(total) AS totalPerCategoryPerState FROM T WHERE category_name = 'CAT_6' GROUP BY state_name ORDER BY totalPerCategoryPerState DESC;
+
 
 /*other tables */
-select * from product ORDER BY id;
+select * from person ORDER BY person_name;
 select * from state ORDER BY state_name;
+select * from product ORDER BY product_name;
+
+-- alphabetical PRODUCT
+SELECT product_name, SUM(total) AS totalPerProduct FROM T GROUP BY product_name ORDER BY product_name;
+-- TOP-K PRODUCT
+SELECT product_name, SUM(total) AS totalPerProduct FROM T GROUP BY product_name ORDER BY totalPerProduct DESC;
 
 
+
+-- -- alphabetical+categoryid PRODUCT
+-- SELECT product_name, SUM(total) AS totalPerProduct FROM T WHERE category_name = 'CAT_6' GROUP BY product_name ORDER BY product_name;
+--
+-- -- TOP-K + categoryid PRODUCT
+-- SELECT product_name, category_name, SUM(total) AS totalPerProduct FROM T WHERE category_id = '4' GROUP BY product_name, category_id ORDER BY category_id, totalPerProduct DESC;
+
+--To get products that are not in the category
+-- SELECT pd.product_name FROM product pd WHERE NOT EXISTS (WITH T AS (SELECT
+--                                                             s.id                            AS state_id,
+--                                                             s.state_name,
+--                                                             pd.id                           AS product,
+--                                                             pd.product_name,
+--                                                             pd.category_id,
+--                                                             pic.price,
+--                                                             sum(pic.quantity),
+--                                                             (pic.price * sum(pic.quantity)) AS total
+--                                                           FROM
+--                                                             shopping_cart sc
+--                                                             INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
+--                                                             RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
+--                                                             RIGHT JOIN person p ON (p.id = sc.person_id)
+--                                                             INNER JOIN state s ON (s.id = p.id)
+--                                                           WHERE sc.is_purchased = 't'
+--                                                           GROUP BY s.id, s.state_name, pd.id, pic.price
+--                                                           ORDER BY s.state_name, pd.id)
+--                                                SELECT
+--                                                  product_name,
+--                                                  category_id,
+--                                                  SUM(total) AS totalPerProduct
+--                                                FROM T
+--                                                WHERE category_id = '5'
+--                                                AND pd.product_name = product_name
+--                                                GROUP BY product_name, category_id
+-- --                                                 ORDER BY category_id, product_name
+-- );
 
