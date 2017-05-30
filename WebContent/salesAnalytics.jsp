@@ -40,8 +40,6 @@ if(session.getAttribute("personName")==null) {
     Statement statement4 = null;
 
     ResultSet rs = null;
-    ResultSet rs1 = null;
-    ResultSet rs2 = null;
     ResultSet rs3 = null;
     ResultSet rs4 = null;
     ResultSet rs_row = null;
@@ -507,17 +505,8 @@ if(session.getAttribute("personName")==null) {
   	</form> 
   </table>
   <%-- -------- Close Connection Code -------- --%>
-    <%
-        
-        // Close the ResultSet
-        rs3.close();
-
-        // Close the Statement
-       // statement.close();
-
-        // Close the Connection
-        conn.close();
-        
+    <%  
+  	  conn.close();
   	  }
     }catch (SQLException e) {
       throw new RuntimeException(e);
@@ -532,12 +521,60 @@ if(session.getAttribute("personName")==null) {
             } catch (SQLException e) { } // Ignore
             rs = null;
         }
+        if (rs_product != null) {
+            try {
+                rs_product.close();
+            } catch (SQLException e) { } // Ignore
+            rs_product = null;
+        }
+        if (rs_row != null) {
+            try {
+                rs_row.close();
+            } catch (SQLException e) { } // Ignore
+            rs_row = null;
+        }
+        if (rs3 != null) {
+            try {
+                rs3.close();
+            } catch (SQLException e) { } // Ignore
+            rs3 = null;
+        }
+        if (rs3_product != null) {
+            try {
+                rs3_product.close();
+            } catch (SQLException e) { } // Ignore
+            rs3_product = null;
+        }
         if (pstmt != null) {
             try {
                 pstmt.close();
             } catch (SQLException e) { } // Ignore
             pstmt = null;
         }
+        if (pstmt1 != null) {
+            try {
+                pstmt1.close();
+            } catch (SQLException e) { } // Ignore
+            pstmt1 = null;
+        }
+        if (pstmt2 != null) {
+            try {
+                pstmt2.close();
+            } catch (SQLException e) { } // Ignore
+            pstmt2 = null;
+        }
+        if (pstmt3 != null) {
+            try {
+                pstmt3.close();
+            } catch (SQLException e) { } // Ignore
+            pstmt3 = null;
+        }
+        if (pstmt3_product != null) {
+            try {
+                pstmt3_product.close();
+            } catch (SQLException e) { } // Ignore
+            pstmt3_product = null;
+        }        
         if (conn != null) {
             try {
                 conn.close();
