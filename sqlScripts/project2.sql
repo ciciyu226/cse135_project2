@@ -122,25 +122,40 @@ INSERT INTO state (state_name, state_code) VALUES ('Northern Mariana Islands','M
 
 /* CUSTOMER uses this */
 
-/* Query 1 */
-create index ind0 on shopping_cart(is_purchased);
-create index ind1 on shopping_cart(person_id);
-create index ind2 on products_in_cart(cart_id);
+create index ind0 ON shopping_cart(person_id);
+create index ind1 ON products_in_cart(cart_id);
+create index ind2 ON shopping_cart(is_purchased);
+create index ind3 ON product(product_name);
+create index ind4 ON product(category_id);
+create index ind5 ON products_in_cart(product_id);
+create index ind6 ON state(state_name);
+create index ind7 on person(state_id);
+analyze;
+
 /* p(person_name) by default
    product(id) by default */
 
 drop index ind0;
 drop index ind1;
 drop index ind2;
+drop index ind3;
+drop index ind4;
+drop index ind5;
+drop index ind6;
+drop index ind7;
+
+/* Query 1 */
+select * from shopping_cart;
+
 /*---------------------VIEW WITH NO CATEGORY------------------------------------*/
-WITH T AS (SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+WITH T AS (explain SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
           RIGHT JOIN person p ON (p.id = sc.person_id)
         WHERE sc.is_purchased = 't' GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id)
 
-WITH T AS (SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+WITH T AS (explain SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
@@ -149,7 +164,7 @@ WITH T AS (SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_n
         WHERE sc.is_purchased = 't' GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id)
 
 /*---------------------VIEW WITH CATEGORY FILTER------------------------------------*/
-WITH T AS (SELECT p.id AS person_id, p.person_name, c.category_name, pd.id AS product, pd.product_name,  pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+WITH T AS (explain SELECT p.id AS person_id, p.person_name, c.category_name, pd.id AS product, pd.product_name,  pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
@@ -157,7 +172,7 @@ WITH T AS (SELECT p.id AS person_id, p.person_name, c.category_name, pd.id AS pr
           INNER JOIN category c ON (pd.category_id = c.id)
         WHERE sc.is_purchased = 't' AND category_name = ?  GROUP BY p.id, pd.id, c.category_name, pic.price ORDER BY p.person_name, pd.id)
 
-WITH T AS (SELECT s.id AS state_id, s.state_name, c.category_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+WITH T AS (explain SELECT s.id AS state_id, s.state_name, c.category_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
@@ -185,19 +200,19 @@ SELECT LEFT(pd.product_name, 10) AS name, SUM(total) AS totalPerItem FROM T RIGH
 SELECT LEFT(pd.product_name, 10) AS name, SUM(total) AS totalPerItem FROM T RIGHT OUTER JOIN product pd ON (T.product = pd.id) INNER JOIN category c1 ON (pd.category_id = c1.id) WHERE c1.category_name = ? GROUP BY pd.product_name, pd.id ORDER BY totalPerItem DESC NULLS LAST, pd.id;
 
 /*------------------------Big table for searching products by current user name and current product name-----------------------------------------------------*/
-SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+explain SELECT p.id AS person_id, p.person_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
           RIGHT JOIN person p ON (p.id = sc.person_id)
-        WHERE sc.is_purchased = 't' AND p.person_name = ? AND pd.product_name = ? GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id)
-SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
+        WHERE sc.is_purchased = 't' AND p.person_name = ? AND pd.product_name = ? GROUP BY p.id, pd.id, pic.price ORDER BY p.person_name, pd.id
+explain SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
            shopping_cart sc
           INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
           RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
           RIGHT JOIN person p ON (p.id = sc.person_id)
           INNER JOIN state s ON (s.id = p.id)
-        WHERE sc.is_purchased = 't' AND s.state_name = ? AND pd.product_name = ? GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id)
+        WHERE sc.is_purchased = 't' AND s.state_name = ? AND pd.product_name = ? GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id
 
 
 
