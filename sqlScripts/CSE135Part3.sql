@@ -30,7 +30,7 @@ group by product_id order by dollar desc--limit 10 --offset 20
 top_n_prod as
 (select row_number() over(order by dollar desc) as product_order, product_id, dollar from top_prod
 )
-select ts.state_id, s.state_name, tp.product_id, pr.product_name, COALESCE(ot.amount, 0.0) as cell_sum, ts.dollar as state_sum, tp.dollar as product_sum
+select ts.state_id, s.state_name, tp.product_id, pr.product_name, pr.category_id, COALESCE(ot.amount, 0.0) as cell_sum, ts.dollar as state_sum, tp.dollar as product_sum
 	from top_n_prod tp CROSS JOIN top_n_state ts
 	LEFT OUTER JOIN overall_table ot
 	ON ( tp.product_id = ot.product_id and ts.state_id = ot.state_id)
@@ -38,7 +38,8 @@ select ts.state_id, s.state_name, tp.product_id, pr.product_name, COALESCE(ot.am
 	inner join product pr ON tp.product_id = pr.id
 	order by ts.state_order, tp.product_order;
 
-SELECT * FROM precomputed WHERE state_id=51;
+--SELECT * FROM precomputed WHERE state_id=51;
+--DROP TABLE precomputed;
 
 --PUSH LOG CHANGES TO PRECOMPUTED TABLE
 ----------Update cell_sum----------
@@ -94,11 +95,11 @@ CREATE TRIGGER logging AFTER INSERT ON products_in_cart
   FOR EACH ROW
   EXECUTE PROCEDURE log_cart();
 
-DROP TRIGGER logging ON products_in_cart;
-DROP FUNCTION log_cart();
-DROP TABLE logs;
+--DROP TRIGGER logging ON products_in_cart;
+--DROP FUNCTION log_cart();
+--DROP TABLE logs;
 
-SELECT * FROM logs;
+--SELECT * FROM logs;
 
 ----------Log+Precomputed View on Refresh----------
 ----------Create the View----------
@@ -123,6 +124,6 @@ UPDATE refresh_view pre
 	FROM T
 	WHERE pre.product_id=T.product_id;
 ----------DO QUERIES HERE----------
-SELECT * FROM refresh_view WHERE state_id=51;
+--SELECT * FROM refresh_view WHERE state_id=51;
 ----------DROP THE VIEW----------
 DROP VIEW refresh_view;
