@@ -39,6 +39,13 @@ select ts.state_id, s.state_name, tp.product_id, pr.product_name, pr.category_id
 	order by ts.state_order, tp.product_order;
 
 --SELECT * FROM precomputed WHERE state_id=51;
+--product header
+SELECT DISTINCT product_id, product_name, product_sum FROM precomputed ORDER BY product_sum DESC LIMIT 50;
+--state header
+SELECT DISTINCT state_id, state_name, state_sum FROM precomputed ORDER BY state_sum DESC;
+--inner cells
+SELECT * FROM precomputed WHERE state_name = ? ORDER BY product_sum DESC LIMIT 50;
+
 --DROP TABLE precomputed;
 
 --PUSH LOG CHANGES TO PRECOMPUTED TABLE
