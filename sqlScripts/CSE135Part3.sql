@@ -1,111 +1,128 @@
+----------Precomputed Table----------
+CREATE TABLE precomputed AS
+with overall_table as
+(select pc.product_id,c.state_id,sum(pc.price*pc.quantity) as amount
+ 	from products_in_cart pc
+ 	inner join shopping_cart sc on (sc.id = pc.cart_id and sc.is_purchased = true)
+ 	inner join product p on (pc.product_id = p.id) -- add category filter if any
+ 	inner join person c on (sc.person_id = c.id)
+ 	group by pc.product_id,c.state_id
+),
+top_state as
+(select state_id, sum(amount) as dollar from (
+	select state_id, amount from overall_table
+	UNION ALL
+	select id as state_id, 0.0 as amount from state
+	) as state_union
+ group by state_id order by dollar desc --limit 20  --offset 20
+),
+top_n_state as
+(select row_number() over(order by dollar desc) as state_order, state_id, dollar from top_state
+),
+top_prod as
+(select product_id, sum(amount) as dollar from (
+	select product_id, amount from overall_table
+	UNION ALL
+	select id as product_id, 0.0 as amount from product
+	) as product_union
+group by product_id order by dollar desc--limit 10 --offset 20
+),
+top_n_prod as
+(select row_number() over(order by dollar desc) as product_order, product_id, dollar from top_prod
+)
+select ts.state_id, s.state_name, tp.product_id, pr.product_name, COALESCE(ot.amount, 0.0) as cell_sum, ts.dollar as state_sum, tp.dollar as product_sum
+	from top_n_prod tp CROSS JOIN top_n_state ts
+	LEFT OUTER JOIN overall_table ot
+	ON ( tp.product_id = ot.product_id and ts.state_id = ot.state_id)
+	inner join state s ON ts.state_id = s.id
+	inner join product pr ON tp.product_id = pr.id
+	order by ts.state_order, tp.product_order;
 
---Get all state to product purchases
-CREATE TABLE state_to_prod AS
-SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
-           shopping_cart sc
-          INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
-          RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
-          RIGHT JOIN person p ON (p.id = sc.person_id)
-          INNER JOIN state s ON (s.id = p.id)
-        WHERE sc.is_purchased = 't' GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id;
+SELECT * FROM precomputed WHERE state_id=51;
 
-SELECT * FROM state_to_prod;
+--PUSH LOG CHANGES TO PRECOMPUTED TABLE
+----------Update cell_sum----------
+UPDATE precomputed pre
+	SET cell_sum=(cell_sum+l.added)
+	FROM logs l
+	WHERE pre.state_id=l.state_id
+	AND pre.product_id=l.product_id;
+----------Update state_sum----------
+WITH T AS(
+		SELECT state_id, sum(added) AS total
+		FROM logs GROUP BY state_id )
+UPDATE precomputed pre
+	SET state_sum=(state_sum+T.total)
+	FROM T
+	WHERE pre.state_id=T.state_id;
+----------Update product_sum----------
+WITH T AS(
+		SELECT product_id, sum(added) AS total
+		FROM logs GROUP BY product_id )
+UPDATE precomputed pre
+	SET product_sum=(product_sum+T.total)
+	FROM T
+	WHERE pre.product_id=T.product_id;
+----------Empty the Log----------
+DELETE FROM logs WHERE true;
 
---DROP TABLE state_to_prod;
-
---Get the state headers ordered by totals
-CREATE TABLE state_header AS
-SELECT state_id,state_name, SUM(total) FROM state_to_prod GROUP BY state_id, state_name ORDER BY sum DESC;
-
-SELECT * FROM state_header;
-
---DROP TABLE state_header;
-
---Get the product headers ordered by totals
-CREATE TABLE prod_header AS
-SELECT product, product_name, SUM(total) FROM state_to_prod GROUP BY product, product_name ORDER BY sum DESC;
-
-SELECT * FROM prod_header;
-
---DROP TABLE prod_header;
-
---TIME TESTING
-select * from products_in_cart;
-WITH T AS(SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
-           shopping_cart sc
-          INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
-          RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
-          RIGHT JOIN person p ON (p.id = sc.person_id)
-          INNER JOIN state s ON (s.id = p.id)
-        WHERE sc.is_purchased = 't' GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id)
-SELECT state_id,state_name, SUM(total) FROM T GROUP BY state_id, state_name ORDER BY sum DESC;
-
-CREATE TABLE log(
-  state_id      INTEGER REFERENCES state(id),
-  state_name    TEXT NOT NULL,
-  product_id    INTEGER REFERENCES product(id),
-  product_name  TEXT NOT NULL,
-  added         INTEGER NOT NULL CHECK(added>=0)
+----------Log Table----------
+CREATE TABLE logs(
+  state_id      INTEGER,
+  state_name    TEXT,
+  product_id    INTEGER,
+  product_name  TEXT,
+  added         INTEGER CHECK(added>=0)
 );
 
+----------Add Trigger on Insert of products_in_cart----------
+CREATE FUNCTION log_cart() RETURNS trigger AS $log_cart$
+    BEGIN
+      INSERT INTO logs SELECT p.state_id, s.state_name, pic.product_id, pd.product_name,(pic.price*sum(pic.quantity)) AS added
+        FROM person p, state s, shopping_cart sc, products_in_cart pic, product pd
+        WHERE p.id=sc.person_id
+        AND p.state_id=s.id
+        AND pic.cart_id=sc.id
+        AND pd.id=pic.product_id
+        AND pic.id=NEW.id
+        GROUP BY state_id, s.state_name, pic.product_id, pd.product_name, pic.price ORDER BY added DESC;
+      RETURN NULL;
+    END;
+$log_cart$ LANGUAGE plpgsql;
 
+CREATE TRIGGER logging AFTER INSERT ON products_in_cart
+  FOR EACH ROW
+  EXECUTE PROCEDURE log_cart();
 
+DROP TRIGGER logging ON products_in_cart;
+DROP FUNCTION log_cart();
+DROP TABLE logs;
 
-/*--------------------------------------------Project 3-------------------------------------*/
---Get all state to product purchases
-drop table state_to_prod;
-CREATE TABLE state_to_prod AS
-SELECT s.id AS state_id, s.state_name, c.category_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
-           shopping_cart sc
-          INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
-          RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
-          RIGHT JOIN person p ON (p.id = sc.person_id)
-          INNER JOIN state s ON (s.id = p.state_id)
-          INNER JOIN category c ON (pd.category_id = c.id)
-        WHERE sc.is_purchased = 't' GROUP BY s.id, s.state_name, c.category_name, pd.id, pic.price ORDER BY s.state_name, pd.id;
+SELECT * FROM logs;
 
-SELECT * FROM state_to_prod;
-
---DROP TABLE state_to_prod;
-
---Get the state headers ordered by totals
-drop table state_header;
-CREATE TABLE state_header AS
-SELECT s.state_name AS name, SUM(total) AS totalPerItem FROM state_to_prod stp RIGHT OUTER JOIN state s ON (stp.state_id = s.id) GROUP BY s.id, s.state_name ORDER BY totalPerItem DESC NULLS LAST;
-
-UPDATE state_header SET totalPerItem = 0 WHERE totalPerItem is NULL;
-
-SELECT * FROM state_header;
-
---DROP TABLE state_header;
-
---Get the product headers ordered by totals
-drop table prod_header;
-CREATE TABLE prod_header AS
-SELECT pd.product_name AS name, SUM(total) AS totalPerItem FROM state_to_prod stp RIGHT OUTER JOIN product pd ON (stp.product = pd.id) GROUP BY pd.id, pd.product_name ORDER BY totalPerItem DESC NULLS LAST;
-
-UPDATE prod_header SET totalPerItem = 0 WHERE totalPerItem IS NULL;
-
-SELECT * FROM prod_header;
-
---DROP TABLE prod_header;
-
---TIME TESTING
-select * from products_in_cart;
-WITH T AS(SELECT s.id AS state_id, s.state_name, pd.id AS product, pd.product_name, pic.price, sum(pic.quantity), (pic.price*sum(pic.quantity)) AS total FROM
-           shopping_cart sc
-          INNER JOIN products_in_cart pic ON (pic.cart_id = sc.id)
-          RIGHT OUTER JOIN product pd ON (pd.id = pic.product_id)
-          RIGHT JOIN person p ON (p.id = sc.person_id)
-          INNER JOIN state s ON (s.id = p.id)
-        WHERE sc.is_purchased = 't' GROUP BY s.id, pd.id, pic.price ORDER BY s.state_name, pd.id)
-SELECT state_id,state_name, SUM(total) FROM T GROUP BY state_id, state_name ORDER BY sum DESC;
-
-CREATE TABLE log(
-  state_id      INTEGER REFERENCES state(id),
-  state_name    TEXT NOT NULL,
-  product_id    INTEGER REFERENCES product(id),
-  product_name  TEXT NOT NULL,
-  added         INTEGER NOT NULL CHECK(added>=0)
-);
-
+----------Log+Precomputed View on Refresh----------
+----------Create the View----------
+CREATE VIEW refresh_view AS SELECT * FROM precomputed;
+UPDATE refresh_view pre
+	SET cell_sum=(cell_sum+l.added)
+	FROM logs l
+	WHERE pre.state_id=l.state_id
+	AND pre.product_id=l.product_id;
+WITH T AS(
+		SELECT state_id, sum(added) AS total
+		FROM logs GROUP BY state_id )
+UPDATE refresh_view pre
+	SET state_sum=(state_sum+T.total)
+	FROM T
+	WHERE pre.state_id=T.state_id;
+WITH T AS(
+		SELECT product_id, sum(added) AS total
+		FROM logs GROUP BY product_id )
+UPDATE refresh_view pre
+	SET product_sum=(product_sum+T.total)
+	FROM T
+	WHERE pre.product_id=T.product_id;
+----------DO QUERIES HERE----------
+SELECT * FROM refresh_view WHERE state_id=51;
+----------DROP THE VIEW----------
+DROP VIEW refresh_view;
