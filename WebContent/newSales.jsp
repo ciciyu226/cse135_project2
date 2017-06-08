@@ -140,7 +140,7 @@ if(session.getAttribute("personName")==null) {
 	  conn.commit();
 	  conn.setAutoCommit(true);
   %>
-  <table id="salesTable" border="1" style="color:blue">  	
+  <table id="salesTable" border="1">  	
   	<tr>
   	  <td>State / Product </td>
       <% while(rs1.next()) { %>
@@ -149,7 +149,7 @@ if(session.getAttribute("personName")==null) {
   	</tr>
   	<% while(rs2.next()){ %>
   	<tr>
-  	  <th id="<%=rs2.getInt("state_id")%>_0"><span><%= rs2.getString("state_name") %></span><br><span id="total">($ <%=rs2.getInt("state_sum") %>)</span></th>
+  	  <th id="<%=rs2.getInt("state_id")%>_0"><span><%= rs2.getString("state_name") %></span><br>($ <span id="total"><%=rs2.getInt("state_sum") %></span>)</th>
   	  <%
 	  	 /* big table for searching products bought by current user */
 	    
@@ -169,6 +169,7 @@ if(session.getAttribute("personName")==null) {
     <%  
   	  conn.close();
     }catch (SQLException e) {
+    	System.out.println(e.getSQLState());
       throw new RuntimeException(e);
     
     }finally {
@@ -213,4 +214,5 @@ if(session.getAttribute("personName")==null) {
     %>
 </main>
 </body>
+<script src="app.js"></script>
 </html>
