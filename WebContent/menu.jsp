@@ -18,7 +18,10 @@
 		<li><a href='productsearch.jsp'>Products Browsing</a></li>
 		<!-- <li><a href='#'>Product Order</a></li> -->
 		<li><a href='./BuyController'>Buy Shopping Cart</a></li>
+		<li><a href='buyOrders.jsp'> Buy Orders</a></li>
 		<li><a href='salesAnalytics.jsp'> Sales Report</a></li>
+		<li><a href='similarProducts.jsp'> Similar Products</a></li>
+		<li><a href='newSales.jsp'> New Sales Report</a></li>
 	<% } %>
 </ul>
 </body>
