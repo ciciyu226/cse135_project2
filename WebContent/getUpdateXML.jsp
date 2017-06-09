@@ -50,13 +50,29 @@ if(session.getAttribute("personName")==null) {
     	      + " WHERE (l.state_id, l.product_id)=(p.state_id,p.product_id) AND p.state_id=sa.state_id AND p.product_id=pa.product_id)"
     	      + " SELECT * FROM new_totals UNION SELECT * FROM precomputed p WHERE (p.state_id,p.product_id)" 
     	      + " NOT IN (SELECT nt.state_id, nt.product_id FROM new_totals nt) ORDER BY state_sum DESC, product_sum DESC;";
-    //TODO: manually check the rank of each log table product after their sales in the precomputed table are updated
+    
+    String product_header = "WITH T AS (" 
+    		+ " WITH state_added AS ("
+    	    + " SELECT state_id,state_name,SUM(added) AS added FROM logs GROUP BY state_id, state_name),"
+    	    + " product_added AS (SELECT product_id,product_name,SUM(added) AS added FROM logs GROUP BY product_id, product_name),"
+    	    + " new_totals AS (SELECT p.state_id, p.state_name, p.product_id, p.product_name, p.category_id,"
+    	        + " (p.cell_sum+l.added) AS cell_sum, (p.state_sum+sa.added) AS state_sum, (p.product_sum+pa.added) AS product_sum"
+    	      + " FROM precomputed p, logs l, state_added sa, product_added pa"
+    	      + " WHERE (l.state_id, l.product_id)=(p.state_id,p.product_id) AND p.state_id=sa.state_id AND p.product_id=pa.product_id)"
+    	      + " (SELECT * FROM new_totals UNION SELECT * FROM precomputed p WHERE (p.state_id,p.product_id)" 
+    	      + " NOT IN (SELECT nt.state_id, nt.product_id FROM new_totals nt)) ORDER BY state_sum DESC, product_sum DESC)"
+    	      + " SELECT product_id, product_name, MAX(product_sum) as product_sum FROM T GROUP BY product_id, product_name ORDER BY product_sum DESC;";
+    	      //TODO: manually check the rank of each log table product after their sales in the precomputed table are updated
     
     statement = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
     	    ResultSet.CONCUR_READ_ONLY);
-    //statement2 = conn.createStatement();
+    statement2 = conn.createStatement();
     
+    conn.setAutoCommit(false);
     rs = statement.executeQuery(precomputed_log);
+    rs2 = statement2.executeQuery(product_header);
+    conn.commit();
+    conn.setAutoCommit(true);
     //statement2.execute(dropView);
     //conn.commit();
     //conn.setAutoCommit(true);
@@ -76,9 +92,15 @@ if(session.getAttribute("personName")==null) {
        		<innerCellValue><%= rs.getInt("cell_sum") %></innerCellValue>
        	</currentRow>
  <%  }
-    System.out.println(response.getStatus());
-    System.out.println("Sending response");
-	    
+    
+    while(rs2.next()) { %>
+    	<currentProduct>
+    		<productHeaderCellID1>0_<%= rs2.getInt("product_id") %></productHeaderCellID1>
+    		<productHeaderName1><%= rs2.getString("product_name") %></productHeaderName1>
+    		<productHeaderValue1><%= rs2.getInt("product_sum") %></productHeaderValue1>
+    	</currentProduct>
+  <% }
+    System.out.println("Sending response");   
   %>
 </item>
   

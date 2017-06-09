@@ -35,8 +35,13 @@ function doUpdate(xml){
 	var currInnerCellID;
 	var currInnerCellValue;
 	
+	var currProductHeaderID1;
+	var currProductHeaderName1;
+	var currProductHeaderValue1;
+	
 	var xmlDoc = xml.responseXML.documentElement;
 	var rows = xmlDoc.getElementsByTagName("currentRow");
+	var productHeaders = xmlDoc.getElementsByTagName("currentProduct");
 	//TODO: Change color of number to red while the cell is updated
 	//TODO: if some top 50 product ranks lower than 50, make the entire column purple,
 	//and add a sentence saying the new top50 product and its total sale.
@@ -47,6 +52,38 @@ function doUpdate(xml){
 	//console.log(xmlDoc);
 	
 	//loop over all updated products
+	
+		
+		//Check top products only
+		//Handle product headers
+	for (var j = 0 ; j < productHeaders.length; j++ ){
+		currProductHeaderID1 = xmlDoc.getElementsByTagName("productHeaderCellID1")[j].firstChild.nodeValue;	
+		currProductHeaderName1 = xmlDoc.getElementsByTagName("productHeaderName1")[j].firstChild.nodeValue;
+		currProductHeaderValue1 = xmlDoc.getElementsByTagName("productHeaderValue1")[j].firstChild.nodeValue;
+				if(j<50) {
+					if(document.getElementById(currProductHeaderID1) != null){ //if current xml product found in html table
+						if(document.getElementById(currProductHeaderID1).children[2].innerHTML< currProductHeaderValue1){
+							document.getElementById(currProductHeaderID1).children[2].innerHTML = currProductHeaderValue1;
+							document.getElementById(currProductHeaderID1).children[2].style.color = "red";
+							//TODO: IF CHANGED TO RED, NEVER CHANGE BACK TO BLACK AGAIN
+							
+						}else if (document.getElementById(currProductHeaderID1).children[2].innerHTML ==  currProductHeaderValue1){
+							document.getElementById(currProductHeaderID1).children[2].style.color = "black";
+							
+						}
+					}else {  //else if current xml product is not found in the html table, meaning that this product is now in top-50.
+						document.getElementById("newProduct").innerHTML += "<li>New top-50 product: " + currProductHeaderName1 + " Total sale: " + currProductHeaderValue1+ "<li>";
+					}
+				}else if (j>= 50) {
+					if(document.getElementById(currProductHeaderID1) != null) {
+						document.getElementById(currProductHeaderID1).children[2].style.color = "purple";
+						if(document.getElementById(currProductHeaderID1).children[2].innerHTML< currProductHeaderValue1){
+							document.getElementById(currProductHeaderID1).children[2].innerHTML = currProductHeaderValue1;
+						}
+					}
+				}		
+	}	
+	console.log("NUM OF ROWS: " + rows.length);
 	for (var i = 0; i < rows.length; i++){
 		
 		if(i%numOfProducts == 0){ //Next state
@@ -62,24 +99,20 @@ function doUpdate(xml){
 		currInnerCellID = xmlDoc.getElementsByTagName("innerCellID")[i].firstChild.nodeValue;
 		currInnerCellValue = xmlDoc.getElementsByTagName("innerCellValue")[i].firstChild.nodeValue;
 		
-		//Check top products only
-
-
-		//update the cells if needed
+				//update the cells if needed
 		if(document.getElementById(currInnerCellID) != null){
-			console.log("not null");
+			//console.log("not null");
+			
+			
 			if( document.getElementById(currInnerCellID).innerHTML < currInnerCellValue){
 				document.getElementById(currInnerCellID).innerHTML = currInnerCellValue;
-				if(i%numOfProducts>50){
-					//it is not top 50 prod
-					document.getElementById(currInnerCellID).style.color = "purple";
-				}
-				else{
-					document.getElementById(currInnerCellID).style.color = "red";
-				}
+				document.getElementById(currInnerCellID).style.color = "red";
 			}
 			else{
 				document.getElementById(currInnerCellID).style.color = "black";
+			}
+			if(document.getElementById(currProductHeaderID).style.color == "purple"){
+				document.getElementById(currInnerCellID).style.color = "purple";
 			}
 		}
 		//Handle state headers
@@ -92,22 +125,27 @@ function doUpdate(xml){
 		else if( state_update == false && document.getElementById(currStateHeaderID).children[2].innerHTML == currStateHeaderValue){
 			document.getElementById(currStateHeaderID).children[2].style.color = "black";
 		}
-		//Handle product headers
-		/*
-		if( i<numOfProducts ){
-			if( document.getElementById(currProductHeaderID).children[2].innerHTML < currProductHeaderValue && i<50){
-				document.getElementById(currProductHeaderID).children[0].innerHTML = currProductHeaderName;
-				document.getElementById(currProductHeaderID).children[2].innerHTML = currProductHeaderValue;
-				document.getElementById(currProductHeaderID).children[2].style.color = "red"
-			}
-			else if( document.getElementById(currProductHeaderID).children[2].innerHTML < currProductHeaderValue && i >= 50 ){
-				document.getElementById(currProductHeaderID).children[0].innerHTML = currProductHeaderName;
-				document.getElementById(currProductHeaderID).children[2].innerHTML = currProductHeaderValue;
-				document.getElementById(currProductHeaderID).children[2].style.color = "purple"
-			}
-			else{
-				document.getElementById(currProductHeaderID).children[2].style.color = "black"
-			}
-		} */
-	}
+			
+			
+			
+			
+			
+			
+//			
+//			if( document.getElementById(currProductHeaderID).children[2].innerHTML < currProductHeaderValue && i<50){
+//				document.getElementById(currProductHeaderID).children[0].innerHTML = currProductHeaderName;
+//				document.getElementById(currProductHeaderID).children[2].innerHTML = currProductHeaderValue;
+//				document.getElementById(currProductHeaderID).children[2].style.color = "red";
+//				
+//			}
+//			else if( document.getElementById(currProductHeaderID).children[2].innerHTML < currProductHeaderValue && i >= 50 ){
+//				document.getElementById(currProductHeaderID).children[0].innerHTML = currProductHeaderName;
+//				document.getElementById(currProductHeaderID).children[2].innerHTML = currProductHeaderValue;
+//				document.getElementById(currProductHeaderID).children[2].style.color = "purple"
+//			}
+//			else if (document.getElementById(currProductHeaderID).children[2].innerHTML == currProductHeaderValue && i ){
+//				document.getElementById(currProductHeaderID).children[2].style.color = "black"
+//			}
+		} 
+	
 }

@@ -95,7 +95,7 @@ if(session.getAttribute("personName")==null) {
 
   %>
 <main>
-  <p id="newProduct"></p>
+  <ul id="newProduct"></ul>
   
   <button id="btn-refresh" onclick="getXML()"> Refresh</button>
   <form action="newSales.jsp" method="GET">
@@ -144,7 +144,7 @@ if(session.getAttribute("personName")==null) {
   	<tr>
   	  <td>State / Product </td>
       <% while(rs1.next()) { %>
-  	  <th class="products" id="0_<%=rs1.getInt("product_id")%>"><span><%= rs1.getString("product_name") %></span><br><span id="total">($ <%=rs1.getInt("product_sum") %>)</span></th>  
+  	  <th class="products" id="0_<%=rs1.getInt("product_id")%>"><span><%= rs1.getString("product_name") %></span><br>($ <span id="total"><%=rs1.getInt("product_sum") %></span>)</th>  
       <% } %>
   	</tr>
   	<% while(rs2.next()){ %>
