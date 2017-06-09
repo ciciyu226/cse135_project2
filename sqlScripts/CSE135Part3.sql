@@ -1,4 +1,22 @@
-----------Precomputed Table----------
+/*
+Authors: Davis Cho, Xi Yu
+email: d2cho@ucsd.edu
+Date: 6/8/17
+ASSIGNMENT: CSE135 PROJECT 3 SQL FILE
+ */
+
+--Indices to use excluding precomputed, including potentially beneficial ones--
+create index ind0 ON shopping_cart(person_id);
+create index ind1 ON products_in_cart(cart_id);
+create index ind2 ON shopping_cart(is_purchased);
+create index ind3 ON product(product_name);
+create index ind4 ON product(category_id);
+create index ind5 ON products_in_cart(product_id);
+create index ind6 ON state(state_name);
+create index ind7 on person(state_id);
+
+----------PRECOMPUTED TABLE----------
+----------create statement----------
 CREATE TABLE precomputed AS
 with overall_table as
 (select pc.product_id,c.state_id,sum(pc.price*pc.quantity) as amount
@@ -38,17 +56,16 @@ select ts.state_id, s.state_name, tp.product_id, pr.product_name, pr.category_id
 	inner join product pr ON tp.product_id = pr.id
 	order by ts.state_order, tp.product_order;
 
---SELECT * FROM precomputed WHERE state_id=51;
---product header
-SELECT DISTINCT product_id, product_name, product_sum FROM precomputed ORDER BY product_sum DESC LIMIT 50;
---state header
-SELECT DISTINCT state_id, state_name, state_sum FROM precomputed ORDER BY state_sum DESC;
---inner cells
-SELECT * FROM precomputed WHERE state_name = ? ORDER BY product_sum DESC LIMIT 50;
+----------PRECOMPUTED TABLE INDICES----------
+--Indices to use on precomputed, including potentially beneficial ones--
+CREATE INDEX ind8 ON precomputed(product_name);
+CREATE INDEX ind9 ON precomputed(state_name);
+CREATE INDEX ind10 ON precomputed(category_id);
+CREATE INDEX ind11 ON precomputed(cell_sum);
+CREATE INDEX ind12 ON precomputed(state_sum);
+CREATE INDEX ind13 ON precomputed(product_sum);
 
---DROP TABLE precomputed;
-
---PUSH LOG CHANGES TO PRECOMPUTED TABLE
+--ON RUN, PUSH LOG CHANGES TO PRECOMPUTED TABLE--
 ----------Update cell_sum----------
 UPDATE precomputed pre
 	SET cell_sum=(cell_sum+l.added)
@@ -74,6 +91,7 @@ UPDATE precomputed pre
 ----------Empty the Log----------
 DELETE FROM logs WHERE true;
 
+
 ----------Log Table----------
 CREATE TABLE logs(
   state_id      INTEGER,
@@ -84,7 +102,8 @@ CREATE TABLE logs(
 );
 
 ----------Add Trigger on Insert of products_in_cart----------
-CREATE FUNCTION log_cart() RETURNS trigger AS $log_cart$
+----------Creating the function----------
+CREATE OR REPLACE FUNCTION log_cart() RETURNS trigger AS $log_cart$
     BEGIN
       INSERT INTO logs SELECT p.state_id, s.state_name, pic.product_id, pd.product_name,(pic.price*sum(pic.quantity)) AS added
         FROM person p, state s, shopping_cart sc, products_in_cart pic, product pd
@@ -97,7 +116,7 @@ CREATE FUNCTION log_cart() RETURNS trigger AS $log_cart$
       RETURN NULL;
     END;
 $log_cart$ LANGUAGE plpgsql;
-
+----------Creating the Trigger----------
 CREATE TRIGGER logging AFTER INSERT ON products_in_cart
   FOR EACH ROW
   EXECUTE PROCEDURE log_cart();
@@ -108,7 +127,33 @@ CREATE TRIGGER logging AFTER INSERT ON products_in_cart
 
 --SELECT * FROM logs;
 
-----------Log+Precomputed View on Refresh----------
+----------RUN ON REFRESH, Log+Precomputed View----------
+explain WITH state_added AS (
+    SELECT state_id,state_name,SUM(added) AS added FROM logs GROUP BY state_id, state_name
+),
+  product_added AS (
+    SELECT product_id,product_name,SUM(added) AS added FROM logs GROUP BY product_id, product_name
+), new_totals AS (
+  SELECT p.state_id, p.state_name, p.product_id, p.product_name, p.category_id,
+    (p.cell_sum+l.added) AS cell_sum, (p.state_sum+sa.added) AS state_sum, (p.product_sum+pa.added) AS product_sum
+  FROM precomputed p, logs l, state_added sa, product_added pa
+  WHERE (l.state_id, l.product_id)=(p.state_id,p.product_id) AND p.state_id=sa.state_id AND p.product_id=pa.product_id
+)
+  SELECT * FROM new_totals UNION SELECT * FROM precomputed p WHERE (p.state_id,p.product_id) NOT IN (
+    SELECT nt.state_id, nt.product_id FROM new_totals nt)
+  ORDER BY state_sum DESC, product_sum DESC ;
+
+
+drop table precomputed;
+drop table logs;
+
+select * from logs;
+
+select * from logs where state_id = '34' AND product_id='12';
+SELECT * FROM precomputed WHERE state_id = '34' AND product_id='12'order by state_sum DESC, product_sum DESC;
+
+/*
+----------Old code for refresh----------
 ----------Create the View----------
 CREATE VIEW refresh_view AS SELECT * FROM precomputed;
 UPDATE refresh_view pre
@@ -134,27 +179,4 @@ UPDATE refresh_view pre
 --SELECT * FROM refresh_view WHERE state_id=51;
 ----------DROP THE VIEW----------
 DROP VIEW refresh_view;
-
-WITH state_added AS (
-    SELECT state_id,state_name,SUM(added) AS added FROM logs GROUP BY state_id, state_name
-),
-  product_added AS (
-    SELECT product_id,product_name,SUM(added) AS added FROM logs GROUP BY product_id, product_name
-), new_totals AS (
-  SELECT p.state_id, p.state_name, p.product_id, p.product_name, p.category_id,
-    (p.cell_sum+l.added) AS cell_sum, (p.state_sum+sa.added) AS state_sum, (p.product_sum+pa.added) AS product_sum
-  FROM precomputed p, logs l, state_added sa, product_added pa
-  WHERE (l.state_id, l.product_id)=(p.state_id,p.product_id) AND p.state_id=sa.state_id AND p.product_id=pa.product_id
-)
-  SELECT * FROM new_totals UNION SELECT * FROM precomputed p WHERE (p.state_id,p.product_id) NOT IN (
-    SELECT nt.state_id, nt.product_id FROM new_totals nt)
-  ORDER BY state_sum DESC, product_sum DESC ;
-
-
-drop table precomputed;
-drop table log;
-
-select * from logs;
-
-select * from logs where state_id = '34' AND product_id='12';
-SELECT * FROM precomputed WHERE state_id = '34' AND product_id='12'order by state_sum DESC, product_sum DESC;
+*/
