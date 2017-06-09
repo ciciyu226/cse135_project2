@@ -1,4 +1,3 @@
-
 //var productHeader = document.getElementById('salesTable').rows[0].cells;
 
 

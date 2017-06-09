@@ -52,7 +52,6 @@ if(session.getAttribute("personName")==null) {
     try {
         // Registering Postgresql JDBC driver with the DriverManager
         Class.forName("org.postgresql.Driver");
-
         // Open a connection to the database using DriverManager
         conn = DriverManager.getConnection(
             "jdbc:postgresql://localhost:5432/postgres?" +
@@ -67,7 +66,7 @@ if(session.getAttribute("personName")==null) {
     		+ " SET cell_sum=(cell_sum+l.added)"
     		+ " FROM added_totals l"
     		+ " WHERE pre.state_id=l.state_id"
-    		+ " AND pre.product_id=l.product_id";    
+    		+ " AND pre.product_id=l.product_id";       
     String update_stateSum = "WITH T AS( SELECT state_id, sum(added) AS total FROM logs GROUP BY state_id )"
     + " UPDATE precomputed pre"
     + " SET state_sum=(state_sum+T.total)"
@@ -83,14 +82,19 @@ if(session.getAttribute("personName")==null) {
         
     String precomputed = "SELECT * FROM precomputed";
     String prod_header;
-    if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("all")){
+    String state_header;
+    if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("-1")){
     	prod_header = "SELECT DISTINCT product_id, product_name, product_sum FROM precomputed WHERE category_id=" + request.getParameter("sort_category")
     			+ " ORDER BY product_sum DESC LIMIT 50";
+    	state_header = "SELECT state_id, state_name, SUM(cell_sum) as state_sum FROM precomputed WHERE category_id=" + request.getParameter("sort_category")
+    			+ " GROUP BY state_id, state_name ORDER BY state_sum DESC";
+     
     }
     else{
     	prod_header = "SELECT DISTINCT product_id, product_name, product_sum FROM precomputed ORDER BY product_sum DESC LIMIT 50";
+    	state_header = "SELECT DISTINCT state_id, state_name, state_sum FROM precomputed ORDER BY state_sum DESC";
+        
     }
-    String state_header = "SELECT DISTINCT state_id, state_name, state_sum FROM precomputed ORDER BY state_sum DESC";
     
     statement = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
     	    ResultSet.CONCUR_READ_ONLY);
@@ -103,23 +107,23 @@ if(session.getAttribute("personName")==null) {
     statement_updateProduct = conn.createStatement();
     statement_emptyLog = conn.createStatement();
     statement_checkLog = conn.createStatement();
-
   %>
 <main>
   <ul id="newProduct"></ul>
-  
-  <button id="btn-refresh" onclick="getXML()"> Refresh</button>
+  <%if(request.getParameter("sort_category")!=null){ %>
+  <button id="btn-refresh" onclick="getXML(<%=request.getParameter("sort_category")%>)"> Refresh</button>
+  <%} %>
   <form action="newSales.jsp" method="GET">
   <select name="sort_category">
-	  	  <%if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("all")){
+	  	  <%if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("-1")){
 	  		  %>
 			<option value="<%=request.getParameter("sort_category")%>"><%=request.getParameter("sort_category")%></option>
 	  	  <%} %>
-	  	    <option value="all">All</option>
+	  	    <option value="-1">All</option>
 		  	<% statement4 = conn.createStatement();
 		  	rs4 = statement4.executeQuery("SELECT * FROM category");
 		  	while(rs4.next()){
-		  		if( request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("all")
+		  		if( request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("-1")
 		  				&& rs4.getString("category_name").equals(request.getParameter("sort_category"))){
 		  		}
 		  		else{
@@ -163,7 +167,7 @@ if(session.getAttribute("personName")==null) {
   	  <th id="<%=rs2.getInt("state_id")%>_0"><span><%= rs2.getString("state_name") %></span><br>($ <span id="total"><%=rs2.getInt("state_sum") %></span>)</th>
   	  <%
 	  	 /* big table for searching products bought by current user */
-	      if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("all")){
+	      if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("-1")){
 	    	  pstmt = conn.prepareStatement("SELECT * FROM precomputed WHERE state_name = ? AND category_id = ? ORDER BY product_sum DESC LIMIT 50");
 	    	  pstmt.setString(1, rs2.getString("state_name"));
 	    	  pstmt.setInt(2, Integer.parseInt(request.getParameter("sort_category")));
@@ -179,8 +183,8 @@ if(session.getAttribute("personName")==null) {
   	<% } %> 	
   </table>
   <%} %>
- 
-  <button id="btn-refresh" onclick="getXML()"> Refresh</button> 	  
+  
+    
   <%-- -------- Close Connection Code -------- --%>
     <%  
   	  conn.close();
@@ -191,7 +195,6 @@ if(session.getAttribute("personName")==null) {
     }finally {
         // Release resources in a finally block in reverse-order of
         // their creation
-
         if (rs != null) {
             try {
                 rs.close();
