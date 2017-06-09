@@ -69,15 +69,19 @@ function doUpdate(xml,cat){
 					if(document.getElementById(currProductHeaderID1) != null){ //if current xml product found in html table
 						if(document.getElementById(currProductHeaderID1).children[2].innerHTML< currProductHeaderValue1){
 							document.getElementById(currProductHeaderID1).children[2].innerHTML = currProductHeaderValue1;
+							document.getElementById(currProductHeaderID1).style.color = "black";
 							document.getElementById(currProductHeaderID1).children[2].style.color = "red";
 							//TODO: IF CHANGED TO RED, NEVER CHANGE BACK TO BLACK AGAIN
 							
 						}else if (document.getElementById(currProductHeaderID1).children[2].innerHTML ==  currProductHeaderValue1){
-							document.getElementById(currProductHeaderID1).children[2].style.color = "black";
+							
+							document.getElementById(currProductHeaderID1).style.color = "black";
 							
 						}
 					}else {  //else if current xml product is not found in the html table, meaning that this product is now in top-50.
-						document.getElementById("newProduct").innerHTML += "<li>New top-50 product: " + currProductHeaderName1 + " Total sale: " + currProductHeaderValue1+ "<li>";
+						var li = document.createElement('li');
+						li.textContent = "New top-50 product: " + currProductHeaderName1 + " Total sale: " + currProductHeaderValue1;
+						document.getElementById("newProduct").appendChild(li);
 					}
 				}else if (j>= 50) {
 					if(document.getElementById(currProductHeaderID1) != null) {
@@ -102,15 +106,21 @@ function doUpdate(xml,cat){
 					if(document.getElementById(currProductHeaderID1) != null){ //if current xml product found in html table
 						if(document.getElementById(currProductHeaderID1).children[2].innerHTML< currProductHeaderValue1){
 							document.getElementById(currProductHeaderID1).children[2].innerHTML = currProductHeaderValue1;
+							document.getElementById(currProductHeaderID1).style.color = "black";
 							document.getElementById(currProductHeaderID1).children[2].style.color = "red";
 							//TODO: IF CHANGED TO RED, NEVER CHANGE BACK TO BLACK AGAIN
 							
 						}else if (document.getElementById(currProductHeaderID1).children[2].innerHTML ==  currProductHeaderValue1){
-							document.getElementById(currProductHeaderID1).children[2].style.color = "black";
+							document.getElementById(currProductHeaderID1).style.color = "black";
 							
 						}
+						
 					}else {  //else if current xml product is not found in the html table, meaning that this product is now in top-50.
-						document.getElementById("newProduct").innerHTML += "<li>New top-50 product: " + currProductHeaderName1 + " Total sale: " + currProductHeaderValue1+ "<li>";
+						var li = document.createElement('li');
+						li.textContent = "New top-50 product: " + currProductHeaderName1 + " Total sale: " + currProductHeaderValue1;
+						document.getElementById("newProduct").appendChild(li);
+						//document.getElementById("newProduct").innerHTML += "New top-50 product: " + currProductHeaderName1 + " Total sale: " + currProductHeaderValue1;
+						//document.getElementById("newProduct").style.display = "block";
 					}
 				}else if (counter>= 50) {
 					if(document.getElementById(currProductHeaderID1) != null) {
@@ -193,7 +203,7 @@ function doUpdate(xml,cat){
 		}
 		
 		//Handle state headers
-		if(cat==-1){ console.log("SETTING WHEN NOT SUPPOSED TO");
+		if(cat==-1){
 		if(document.getElementById(currStateHeaderID).children[2].innerHTML < currStateHeaderValue){
 			document.getElementById(currStateHeaderID).children[0].innerHTML = currStateHeaderName;
 			document.getElementById(currStateHeaderID).children[2].innerHTML = currStateHeaderValue;
