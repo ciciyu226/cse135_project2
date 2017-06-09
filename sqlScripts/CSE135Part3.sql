@@ -67,9 +67,12 @@ CREATE INDEX ind13 ON precomputed(product_sum);
 
 --ON RUN, PUSH LOG CHANGES TO PRECOMPUTED TABLE--
 ----------Update cell_sum----------
+WITH added_totals AS(
+		SELECT state_id, state_name, product_id, product_name, SUM(added) AS added FROM logs
+			GROUP BY state_id, state_name, product_id, product_name)
 UPDATE precomputed pre
 	SET cell_sum=(cell_sum+l.added)
-	FROM logs l
+	FROM added_totals l
 	WHERE pre.state_id=l.state_id
 	AND pre.product_id=l.product_id;
 ----------Update state_sum----------
