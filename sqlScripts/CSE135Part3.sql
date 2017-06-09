@@ -128,7 +128,7 @@ CREATE TRIGGER logging AFTER INSERT ON products_in_cart
 --SELECT * FROM logs;
 
 ----------RUN ON REFRESH, Log+Precomputed View----------
-explain WITH state_added AS (
+WITH state_added AS (
     SELECT state_id,state_name,SUM(added) AS added FROM logs GROUP BY state_id, state_name
 ),
   product_added AS (
@@ -149,8 +149,9 @@ drop table logs;
 
 select * from logs;
 
-select * from logs where state_id = '34' AND product_id='12';
-SELECT * FROM precomputed WHERE state_id = '34' AND product_id='12'order by state_sum DESC, product_sum DESC;
+select * from logs where state_id = '23' AND product_id='9';
+SELECT DISTINCT product_id, product_name, product_sum FROM precomputed WHERE category_id=1
+    			ORDER BY product_sum DESC LIMIT 50
 
 /*
 ----------Old code for refresh----------

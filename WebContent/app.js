@@ -49,6 +49,7 @@ function doUpdate(xml){
 	//added
 	var numOfProducts = rows.length/56;
 	var state_update = false;
+	var purple_tracker = [];
 	//console.log(xmlDoc);
 	
 	//loop over all updated products
@@ -77,6 +78,7 @@ function doUpdate(xml){
 				}else if (j>= 50) {
 					if(document.getElementById(currProductHeaderID1) != null) {
 						document.getElementById(currProductHeaderID1).children[2].style.color = "purple";
+						purple_tracker.push(currProductHeaderID1);
 						if(document.getElementById(currProductHeaderID1).children[2].innerHTML< currProductHeaderValue1){
 							document.getElementById(currProductHeaderID1).children[2].innerHTML = currProductHeaderValue1;
 						}
@@ -85,11 +87,9 @@ function doUpdate(xml){
 	}	
 	console.log("NUM OF ROWS: " + rows.length);
 	for (var i = 0; i < rows.length; i++){
-		
 		if(i%numOfProducts == 0){ //Next state
 			state_update = false;
 		}
-		
 		currProductHeaderID = xmlDoc.getElementsByTagName("productHeaderCellID")[i].firstChild.nodeValue;	
 		currProductHeaderName = xmlDoc.getElementsByTagName("productHeaderName")[i].firstChild.nodeValue;
 		currProductHeaderValue = xmlDoc.getElementsByTagName("productHeaderValue")[i].firstChild.nodeValue;
@@ -98,22 +98,26 @@ function doUpdate(xml){
 		currStateHeaderValue = xmlDoc.getElementsByTagName("stateHeaderValue")[i].firstChild.nodeValue;
 		currInnerCellID = xmlDoc.getElementsByTagName("innerCellID")[i].firstChild.nodeValue;
 		currInnerCellValue = xmlDoc.getElementsByTagName("innerCellValue")[i].firstChild.nodeValue;
-		
-				//update the cells if needed
+		//update the cells if needed
 		if(document.getElementById(currInnerCellID) != null){
+		
+			//console.log("CELL IS: " + document.getElementById(currInnerCellID));
+			//console.log("XML cell ID and value :" + currInnerCellID + " " + currInnerCellValue);
 			//console.log("not null");
-			
 			
 			if( document.getElementById(currInnerCellID).innerHTML < currInnerCellValue){
 				document.getElementById(currInnerCellID).innerHTML = currInnerCellValue;
 				document.getElementById(currInnerCellID).style.color = "red";
+				console.log("XML cell ID and value :" + currInnerCellID + " " + currInnerCellValue + " red");
 			}
 			else{
 				document.getElementById(currInnerCellID).style.color = "black";
+				console.log("XML cell ID and value :" + currInnerCellID + " " + currInnerCellValue + " blk");
+				if(purple_tracker.includes(currProductHeaderID)){
+					document.getElementById(currInnerCellID).style.color = "purple";
+				}
 			}
-			if(document.getElementById(currProductHeaderID).style.color == "purple"){
-				document.getElementById(currInnerCellID).style.color = "purple";
-			}
+
 		}
 		//Handle state headers
 		if(document.getElementById(currStateHeaderID).children[2].innerHTML < currStateHeaderValue){
@@ -125,27 +129,6 @@ function doUpdate(xml){
 		else if( state_update == false && document.getElementById(currStateHeaderID).children[2].innerHTML == currStateHeaderValue){
 			document.getElementById(currStateHeaderID).children[2].style.color = "black";
 		}
-			
-			
-			
-			
-			
-			
-//			
-//			if( document.getElementById(currProductHeaderID).children[2].innerHTML < currProductHeaderValue && i<50){
-//				document.getElementById(currProductHeaderID).children[0].innerHTML = currProductHeaderName;
-//				document.getElementById(currProductHeaderID).children[2].innerHTML = currProductHeaderValue;
-//				document.getElementById(currProductHeaderID).children[2].style.color = "red";
-//				
-//			}
-//			else if( document.getElementById(currProductHeaderID).children[2].innerHTML < currProductHeaderValue && i >= 50 ){
-//				document.getElementById(currProductHeaderID).children[0].innerHTML = currProductHeaderName;
-//				document.getElementById(currProductHeaderID).children[2].innerHTML = currProductHeaderValue;
-//				document.getElementById(currProductHeaderID).children[2].style.color = "purple"
-//			}
-//			else if (document.getElementById(currProductHeaderID).children[2].innerHTML == currProductHeaderValue && i ){
-//				document.getElementById(currProductHeaderID).children[2].style.color = "black"
-//			}
-		} 
+	} 
 	
 }

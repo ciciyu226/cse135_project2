@@ -78,7 +78,14 @@ if(session.getAttribute("personName")==null) {
     
         
     String precomputed = "SELECT * FROM precomputed";
-    String prod_header = "SELECT DISTINCT product_id, product_name, product_sum FROM precomputed ORDER BY product_sum DESC LIMIT 50";
+    String prod_header;
+    if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("all")){
+    	prod_header = "SELECT DISTINCT product_id, product_name, product_sum FROM precomputed WHERE category_id=" + request.getParameter("sort_category")
+    			+ " ORDER BY product_sum DESC LIMIT 50";
+    }
+    else{
+    	prod_header = "SELECT DISTINCT product_id, product_name, product_sum FROM precomputed ORDER BY product_sum DESC LIMIT 50";
+    }
     String state_header = "SELECT DISTINCT state_id, state_name, state_sum FROM precomputed ORDER BY state_sum DESC";
     
     statement = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,
@@ -152,9 +159,14 @@ if(session.getAttribute("personName")==null) {
   	  <th id="<%=rs2.getInt("state_id")%>_0"><span><%= rs2.getString("state_name") %></span><br>($ <span id="total"><%=rs2.getInt("state_sum") %></span>)</th>
   	  <%
 	  	 /* big table for searching products bought by current user */
-	    
-		  pstmt = conn.prepareStatement("SELECT * FROM precomputed WHERE state_name = ? ORDER BY product_sum DESC LIMIT 50");
-	  	  pstmt.setString(1, rs2.getString("state_name"));
+	      if(request.getParameter("sort_category")!=null && !request.getParameter("sort_category").equals("all")){
+	    	  pstmt = conn.prepareStatement("SELECT * FROM precomputed WHERE state_name = ? AND category_id = ? ORDER BY product_sum DESC LIMIT 50");
+	    	  pstmt.setString(1, rs2.getString("state_name"));
+	    	  pstmt.setInt(2, Integer.parseInt(request.getParameter("sort_category")));
+	      }else{
+		  	pstmt = conn.prepareStatement("SELECT * FROM precomputed WHERE state_name = ? ORDER BY product_sum DESC LIMIT 50");
+	  	  	pstmt.setString(1, rs2.getString("state_name"));
+	      }
 	  	  rs = pstmt.executeQuery();
 	  	  while (rs.next()) { %>
 	  		<td id="<%= rs.getInt("state_id")%>_<%= rs.getInt("product_id")%>"><%= rs.getInt("cell_sum") %></td>
