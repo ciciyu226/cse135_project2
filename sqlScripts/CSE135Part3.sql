@@ -113,11 +113,12 @@ CREATE OR REPLACE FUNCTION log_cart() RETURNS trigger AS $log_cart$
         AND pd.id=pic.product_id
         AND pic.id=NEW.id
         GROUP BY state_id, s.state_name, pic.product_id, pd.product_name, pic.price ORDER BY added DESC;
+			RAISE NOTICE 'Adding to log%', NEW.product_id;
       RETURN NULL;
     END;
 $log_cart$ LANGUAGE plpgsql;
 ----------Creating the Trigger----------
-CREATE TRIGGER logging AFTER INSERT ON products_in_cart
+CREATE TRIGGER logging AFTER INSERT OR UPDATE ON products_in_cart
   FOR EACH ROW
   EXECUTE PROCEDURE log_cart();
 
@@ -128,6 +129,26 @@ CREATE TRIGGER logging AFTER INSERT ON products_in_cart
 --SELECT * FROM logs;
 
 ----------RUN ON REFRESH, Log+Precomputed View----------
+--Correct One
+WITH state_added AS (
+    SELECT state_id,state_name,SUM(added) AS added FROM logs GROUP BY state_id, state_name
+),
+  product_added AS (
+    SELECT product_id,product_name,SUM(added) AS added FROM logs GROUP BY product_id, product_name
+), added_totals AS(
+		SELECT state_id, state_name, product_id, product_name, SUM(added) AS added FROM logs
+			GROUP BY state_id, state_name, product_id, product_name
+), new_totals AS (
+  SELECT p.state_id, p.state_name, p.product_id, p.product_name, p.category_id,
+    (p.cell_sum+l.added) AS cell_sum, (p.state_sum+sa.added) AS state_sum, (p.product_sum+pa.added) AS product_sum
+  FROM precomputed p, added_totals l, state_added sa, product_added pa
+  WHERE (l.state_id, l.product_id)=(p.state_id,p.product_id) AND p.state_id=sa.state_id AND p.product_id=pa.product_id
+)
+  SELECT * FROM new_totals UNION SELECT * FROM precomputed p WHERE (p.state_id,p.product_id) NOT IN (
+    SELECT nt.state_id, nt.product_id FROM new_totals nt)
+  ORDER BY state_sum DESC, product_sum DESC ;
+
+--Old one that didn't aggregate the log table
 WITH state_added AS (
     SELECT state_id,state_name,SUM(added) AS added FROM logs GROUP BY state_id, state_name
 ),
@@ -142,7 +163,6 @@ WITH state_added AS (
   SELECT * FROM new_totals UNION SELECT * FROM precomputed p WHERE (p.state_id,p.product_id) NOT IN (
     SELECT nt.state_id, nt.product_id FROM new_totals nt)
   ORDER BY state_sum DESC, product_sum DESC ;
-
 
 drop table precomputed;
 drop table logs;
