@@ -152,6 +152,7 @@ WITH state_added AS (
   ORDER BY state_sum DESC, product_sum DESC ;
 
 --Old one that didn't aggregate the log table
+/*
 WITH state_added AS (
     SELECT state_id,state_name,SUM(added) AS added FROM logs GROUP BY state_id, state_name
 ),
@@ -165,7 +166,7 @@ WITH state_added AS (
 )
   SELECT * FROM new_totals UNION SELECT * FROM precomputed p WHERE (p.state_id,p.product_id) NOT IN (
     SELECT nt.state_id, nt.product_id FROM new_totals nt)
-  ORDER BY state_sum DESC, product_sum DESC ;
+  ORDER BY state_sum DESC, product_sum DESC ; */
 
 drop table precomputed;
 drop table logs;
@@ -204,3 +205,16 @@ UPDATE refresh_view pre
 ----------DROP THE VIEW----------
 DROP VIEW refresh_view;
 */
+
+--Get the top 50 states
+WITH T AS (
+    		WITH state_added AS (
+    	    SELECT state_id,state_name,SUM(added) AS added FROM logs GROUP BY state_id, state_name),
+    	    product_added AS (SELECT product_id,product_name,SUM(added) AS added FROM logs GROUP BY product_id, product_name),
+    	    new_totals AS (SELECT p.state_id, p.state_name, p.product_id, p.product_name, p.category_id,
+    	        (p.cell_sum+l.added) AS cell_sum, (p.state_sum+sa.added) AS state_sum, (p.product_sum+pa.added) AS product_sum
+    	      FROM precomputed p, logs l, state_added sa, product_added pa
+    	      WHERE (l.state_id, l.product_id)=(p.state_id,p.product_id) AND p.state_id=sa.state_id AND p.product_id=pa.product_id)
+    	      (SELECT * FROM new_totals UNION SELECT * FROM precomputed p WHERE (p.state_id,p.product_id)
+    	      NOT IN (SELECT nt.state_id, nt.product_id FROM new_totals nt)) ORDER BY state_sum DESC, product_sum DESC)
+    	      SELECT product_id, product_name, category_id, MAX(product_sum) as product_sum FROM T GROUP BY product_id, product_name, category_id ORDER BY product_sum DESC;

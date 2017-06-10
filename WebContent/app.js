@@ -72,10 +72,10 @@ function doUpdate(xml,cat){
 							document.getElementById(currProductHeaderID1).children[2].style.color = "red";
 							//TODO: IF CHANGED TO RED, NEVER CHANGE BACK TO BLACK AGAIN
 							
-						}else if (document.getElementById(currProductHeaderID1).children[2].innerHTML ==  currProductHeaderValue1){
-							
+						}else{ //if (document.getElementById(currProductHeaderID1).children[2].innerHTML ==  currProductHeaderValue1){
 							document.getElementById(currProductHeaderID1).style.color = "black";
-							
+							document.getElementById(currProductHeaderID1).children[2].style.color = "black";
+			
 						}
 					}else {  //else if current xml product is not found in the html table, meaning that this product is now in top-50.
 						var li = document.createElement('li');
@@ -85,9 +85,11 @@ function doUpdate(xml,cat){
 				}else if (j>= 50) {
 					if(document.getElementById(currProductHeaderID1) != null) {
 						document.getElementById(currProductHeaderID1).style.color = "purple";
+						document.getElementById(currProductHeaderID1).children[2].style.color = "purple";
 						purple_tracker.push(currProductHeaderID1);
 						if(document.getElementById(currProductHeaderID1).children[2].innerHTML< currProductHeaderValue1){
 							document.getElementById(currProductHeaderID1).children[2].innerHTML = currProductHeaderValue1;
+							document.getElementById(currProductHeaderID1).children[2].style.color = "red";
 						}
 					}
 				}		
@@ -109,8 +111,9 @@ function doUpdate(xml,cat){
 							document.getElementById(currProductHeaderID1).children[2].style.color = "red";
 							//TODO: IF CHANGED TO RED, NEVER CHANGE BACK TO BLACK AGAIN
 							
-						}else if (document.getElementById(currProductHeaderID1).children[2].innerHTML ==  currProductHeaderValue1){
+						}else{ //if (document.getElementById(currProductHeaderID1).children[2].innerHTML ==  currProductHeaderValue1){
 							document.getElementById(currProductHeaderID1).style.color = "black";
+							document.getElementById(currProductHeaderID1).children[2].style.color = "black";
 							
 						}
 						
@@ -122,11 +125,17 @@ function doUpdate(xml,cat){
 						//document.getElementById("newProduct").style.display = "block";
 					}
 				}else if (counter>= 50) {
+					
 					if(document.getElementById(currProductHeaderID1) != null) {
 						document.getElementById(currProductHeaderID1).style.color = "purple";
+						document.getElementById(currProductHeaderID1).children[2].style.color = "purple";
 						purple_tracker.push(currProductHeaderID1);
 						if(document.getElementById(currProductHeaderID1).children[2].innerHTML< currProductHeaderValue1){
 							document.getElementById(currProductHeaderID1).children[2].innerHTML = currProductHeaderValue1;
+							//document.getElementById(currProductHeaderID1).style.color = "black";
+							document.getElementById(currProductHeaderID1).children[2].style.color = "red";
+							//TODO: IF CHANGED TO RED, NEVER CHANGE BACK TO BLACK AGAIN
+							
 						}
 					}
 				}
